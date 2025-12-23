@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor
 from core.account_manager import AccountManager, Account
+from core.logger import logger
 
 
 class AddAccountDialog(QDialog):
@@ -121,6 +122,8 @@ class AccountView(QWidget):
         self.account_manager = AccountManager()
         self.init_ui()
         self.set_background()
+        # 初始化时加载账户数据
+        self.refresh_table()
     
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -130,14 +133,17 @@ class AccountView(QWidget):
         
         self.add_btn = QPushButton("➕ 添加账号")
         self.delete_btn = QPushButton("🗑️ 删除选中")
+        self.refresh_btn = QPushButton("🔄 刷新列表")
         self.excel_import_btn = QPushButton("批量导入")
         
         self.add_btn.clicked.connect(self.add_account)
         self.delete_btn.clicked.connect(self.delete_selected)
+        self.refresh_btn.clicked.connect(self.refresh_table)
         self.excel_import_btn.clicked.connect(self.import_accounts)
         
         toolbar_layout.addWidget(self.add_btn)
         toolbar_layout.addWidget(self.delete_btn)
+        toolbar_layout.addWidget(self.refresh_btn)
         toolbar_layout.addWidget(self.excel_import_btn)
         toolbar_layout.addStretch()
         
@@ -181,19 +187,27 @@ class AccountView(QWidget):
             username, password, nickname = dialog.get_values()
             
             if not username or not password:
-                QMessageBox.warning(self, "警告", "用户名和密码不能为空")
+                msg_box = QMessageBox(QMessageBox.Warning, "警告", "用户名和密码不能为空")
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                msg_box.exec_()
                 return
             
             if self.account_manager.add_account(username, password, nickname):
                 self.refresh_table()
-                QMessageBox.information(self, "成功", "账号添加成功")
+                msg_box = QMessageBox(QMessageBox.Information, "成功", "账号添加成功")
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                msg_box.exec_()
             else:
-                QMessageBox.warning(self, "警告", "该账号已存在")
+                msg_box = QMessageBox(QMessageBox.Warning, "警告", "该账号已存在")
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                msg_box.exec_()
     
     def import_accounts(self):
         """从文件导入账号"""
-        QMessageBox.information(
-            self, 
+        msg_box = QMessageBox(QMessageBox.Information, 
             "批量导入", 
             "请选择Excel文件进行批量导入\n\n"
             "Excel文件格式要求：\n"
@@ -201,6 +215,9 @@ class AccountView(QWidget):
             "• 可选包含\"昵称\"列\n"
             "• 支持中英文列名（用户名/username，密码/password，昵称/nickname）"
         )
+        # 移除问号帮助按钮
+        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        msg_box.exec_()
         
         filepath, _ = QFileDialog.getOpenFileName(
             self, "选择Excel文件", "", "Excel文件 (*.xlsx *.xls)"
@@ -210,12 +227,21 @@ class AccountView(QWidget):
             if filepath.endswith(('.xlsx', '.xls')):
                 count, error = self.import_from_excel(filepath)
                 if error:
-                    QMessageBox.warning(self, "导入失败", error)
+                    msg_box = QMessageBox(QMessageBox.Warning, "导入失败", error)
+                    # 移除问号帮助按钮
+                    msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                    msg_box.exec_()
                 else:
                     self.refresh_table()
-                    QMessageBox.information(self, "导入成功", f"成功导入 {count} 个账号")
+                    msg_box = QMessageBox(QMessageBox.Information, "导入成功", f"成功导入 {count} 个账号")
+                    # 移除问号帮助按钮
+                    msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                    msg_box.exec_()
             else:
-                QMessageBox.warning(self, "文件格式错误", "请选择Excel文件（.xlsx或.xls格式）")
+                msg_box = QMessageBox(QMessageBox.Warning, "文件格式错误", "请选择Excel文件（.xlsx或.xls格式）")
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                msg_box.exec_()
     
     def import_from_excel(self, filepath):
         """从Excel文件导入账号"""
@@ -247,9 +273,8 @@ class AccountView(QWidget):
                 nickname = str(row[nickname_col]).strip() if nickname_col and pd.notna(row[nickname_col]) else ""
                 
                 if username and password:
-                    account = Account(username=username, password=password, nickname=nickname)
-                    self.account_manager.add_account(account)
-                    count += 1
+                    if self.account_manager.add_account(username, password, nickname):
+                        count += 1
             
             return count, None
             
@@ -259,7 +284,10 @@ class AccountView(QWidget):
     def export_accounts(self):
         """导出账号到文件"""
         if self.account_manager.get_account_count() == 0:
-            QMessageBox.warning(self, "警告", "没有账号可导出")
+            msg_box = QMessageBox(QMessageBox.Warning, "警告", "没有账号可导出")
+            # 移除问号帮助按钮
+            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+            msg_box.exec_()
             return
         
         filepath, _ = QFileDialog.getSaveFileName(
@@ -269,21 +297,31 @@ class AccountView(QWidget):
         if filepath:
             success, error = self.account_manager.export_to_file(filepath)
             if success:
-                QMessageBox.information(self, "成功", "账号导出成功")
+                msg_box = QMessageBox(QMessageBox.Information, "成功", "账号导出成功")
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                msg_box.exec_()
             else:
-                QMessageBox.warning(self, "导出失败", error)
+                msg_box = QMessageBox(QMessageBox.Warning, "导出失败", error)
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                msg_box.exec_()
     
     def delete_selected(self):
         """删除选中的账号"""
         selected_rows = self.account_table.selectionModel().selectedRows()
         if not selected_rows:
-            QMessageBox.warning(self, "警告", "请先选择要删除的账号")
+            msg_box = QMessageBox(QMessageBox.Warning, "警告", "请先选择要删除的账号")
+            # 移除问号帮助按钮
+            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+            msg_box.exec_()
             return
         
-        reply = QMessageBox.question(
-            self, "确认", f"确定要删除选中的 {len(selected_rows)} 个账号吗？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        msg_box = QMessageBox(QMessageBox.Question, "确认", f"确定要删除选中的 {len(selected_rows)} 个账号吗？")
+        # 移除问号帮助按钮
+        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = msg_box.exec_()
         
         if reply == QMessageBox.StandardButton.Yes:
             # 从后往前删，避免索引问题
@@ -330,6 +368,9 @@ class AccountView(QWidget):
     
     def refresh_table(self):
         """刷新账号表格"""
+        logger.info("用户点击刷新按钮，开始刷新账号列表")
+        # 重新从文件加载账号数据
+        self.account_manager.load_accounts()
         accounts = self.account_manager.get_all_accounts()
         self.account_table.setRowCount(len(accounts))
         
@@ -364,6 +405,7 @@ class AccountView(QWidget):
         # 更新状态栏
         self.status_label.setText(f"账号数: {len(accounts)}")
         self.running_label.setText(f"运行中: {running_count}")
+        logger.info(f"账号列表刷新完成，共 {len(accounts)} 个账号，其中 {running_count} 个运行中")
     
     def on_manage_clicked(self):
         """管理按钮点击"""
@@ -372,6 +414,16 @@ class AccountView(QWidget):
         account = self.account_manager.get_account(username)
         if account:
             self.open_detail_requested.emit(account)
+    
+    def open_detail(self, item):
+        """双击表格行打开账号详情"""
+        row = item.row()
+        username_item = self.account_table.item(row, 0)
+        if username_item:
+            username = username_item.text()
+            account = self.account_manager.get_account(username)
+            if account:
+                self.open_detail_requested.emit(account)
     
     def update_account_status(self, username: str, status: str, progress: str = ""):
         """更新账号状态（供外部调用）"""

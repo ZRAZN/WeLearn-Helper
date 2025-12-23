@@ -8,6 +8,7 @@ import os
 import sys
 from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
+from .logger import logger
 
 
 @dataclass
@@ -46,26 +47,47 @@ class AccountManager:
             app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         self.data_file = os.path.join(app_dir, "accounts.json")
-        print(f"账号数据文件路径: {self.data_file}")  # 添加调试信息
+        logger.info(f"账号数据文件路径: {self.data_file}")
+        
+        # 检查文件是否存在，如果不存在则尝试其他可能的位置
+        if not os.path.exists(self.data_file):
+            logger.warning(f"账号数据文件不存在，尝试查找其他位置: {self.data_file}")
+            # 尝试在当前目录查找
+            current_dir_file = os.path.join(os.getcwd(), "accounts.json")
+            if os.path.exists(current_dir_file):
+                self.data_file = current_dir_file
+                logger.info(f"找到账号数据文件: {self.data_file}")
+            else:
+                logger.warning(f"未找到账号数据文件，将创建新文件: {self.data_file}")
+        
         self.load_accounts()
     
     def add_account(self, username: str, password: str, nickname: str = "") -> bool:
         """添加账号"""
+        logger.info(f"尝试添加账号: {username}")
+        
         # 检查是否已存在
         if any(acc.username == username for acc in self.accounts):
+            logger.warning(f"账号已存在: {username}")
             return False
         
         self.accounts.append(Account(username, password, nickname))
         self.save_accounts()
+        logger.info(f"成功添加账号: {username}")
         return True
     
     def remove_account(self, username: str) -> bool:
         """删除账号"""
+        logger.info(f"尝试删除账号: {username}")
+        
         for i, acc in enumerate(self.accounts):
             if acc.username == username:
                 self.accounts.pop(i)
                 self.save_accounts()
+                logger.info(f"成功删除账号: {username}")
                 return True
+        
+        logger.warning(f"未找到要删除的账号: {username}")
         return False
     
     def clear_accounts(self):
@@ -106,31 +128,47 @@ class AccountManager:
                 }
                 json.dump(data, f, ensure_ascii=False, indent=2)
             
-            print(f"成功保存 {len(self.accounts)} 个账号到: {self.data_file}")
+            logger.info(f"成功保存 {len(self.accounts)} 个账号到: {self.data_file}")
             return True
         except Exception as e:
-            print(f"保存账号信息失败: {e}")
-            print(f"尝试保存到: {self.data_file}")
+            logger.error(f"保存账号信息失败: {e}")
+            logger.error(f"尝试保存到: {self.data_file}")
+            logger.exception("保存账号信息异常详情")
             return False
     
     def load_accounts(self):
         """从文件加载账号信息"""
+        logger.info(f"正在尝试加载账号数据文件: {self.data_file}")
+        logger.debug(f"文件是否存在: {os.path.exists(self.data_file)}")
+        
         if not os.path.exists(self.data_file):
-            print(f"账号数据文件不存在: {self.data_file}")
-            return
+            logger.warning(f"账号数据文件不存在: {self.data_file}")
+            # 尝试在当前目录查找
+            current_dir_file = os.path.join(os.getcwd(), "accounts.json")
+            logger.info(f"尝试在当前目录查找: {current_dir_file}")
+            if os.path.exists(current_dir_file):
+                self.data_file = current_dir_file
+                logger.info(f"找到账号数据文件: {self.data_file}")
+            else:
+                logger.warning("在当前目录也未找到账号数据文件")
+                return
         
         try:
             with open(self.data_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                logger.debug(f"成功读取文件内容: {data}")
                 if 'accounts' in data:
                     self.accounts = [Account.from_dict(acc) for acc in data['accounts']]
-                    print(f"成功加载 {len(self.accounts)} 个账号")
+                    logger.info(f"成功加载 {len(self.accounts)} 个账号")
+                    for i, acc in enumerate(self.accounts):
+                        logger.debug(f"账号 {i+1}: {acc.username}")
                 else:
-                    print("账号数据文件格式错误：缺少 'accounts' 字段")
+                    logger.error("账号数据文件格式错误：缺少 'accounts' 字段")
                     self.accounts = []
         except Exception as e:
-            print(f"加载账号信息失败: {e}")
-            print(f"尝试加载的文件: {self.data_file}")
+            logger.error(f"加载账号信息失败: {e}")
+            logger.error(f"尝试加载的文件: {self.data_file}")
+            logger.exception("加载账号信息异常详情")
             self.accounts = []
     
     def import_from_file(self, filepath: str) -> tuple[int, str]:

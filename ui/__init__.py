@@ -1,1 +1,1 @@
-# UI module for WeLearn application
+# UI包初始化文件
