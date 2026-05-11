@@ -207,17 +207,16 @@ class StudyThread(QThread):
         self._stop_flag = False
 
         try:
-            # unit_idx 现在是一个列表
             unit_indices = self.unit_idx if isinstance(self.unit_idx, list) else [self.unit_idx]
-            logger.info(f"开始处理 {len(unit_indices)} 个单元")
+            total_units = len(unit_indices)
+            logger.info(f"开始处理 {total_units} 个单元")
+            self.progress_update.emit("progress_total", str(total_units))
             
-            for unit_index in unit_indices:
+            for i, unit_index in enumerate(unit_indices):
                 if self._stop_flag:
                     logger.info("检测到停止标志，终止任务执行")
                     break
                 
-
-                    
                 logger.info(f"开始处理单元 {unit_index + 1}")
                 self.progress_update.emit(
                     "unit_start", f"\n=== 开始处理第 {unit_index + 1} 单元 ==="
@@ -232,7 +231,7 @@ class StudyThread(QThread):
                 self.progress_update.emit(
                     "unit_finish", f"=== 第 {unit_index + 1} 单元处理完成 ===\n"
                 )
-                
+                self.progress_update.emit("progress_current", str(i + 1))
 
 
             result = {
@@ -479,6 +478,7 @@ class TimeStudyThread(QThread):
             
             logger.info(f"总共发现 {len(all_courses)} 个课程，开始多单元并发处理")
             self.progress_update.emit("info", f"总共发现 {len(all_courses)} 个课程，开始多单元并发处理...")
+            self.progress_update.emit("progress_total", str(len(all_courses)))
             
             # 多单元并发处理所有课程
             with ThreadPoolExecutor(max_workers=self.max_concurrent) as executor:
@@ -503,9 +503,9 @@ class TimeStudyThread(QThread):
                         total_fail += 1
                     
                     completed_count += 1
-                    # 更新进度
                     progress_percent = int(completed_count / len(all_courses) * 100)
                     self.progress_update.emit("progress", f"进度: {completed_count}/{len(all_courses)} ({progress_percent}%)")
+                    self.progress_update.emit("progress_current", str(completed_count))
             
 
             

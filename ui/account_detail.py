@@ -4,7 +4,7 @@
 """
 import os
 import sys
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QElapsedTimer
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton,
     QListWidget, QListWidgetItem, QLabel, QTextEdit, QMessageBox,
@@ -297,6 +297,33 @@ class AccountDetailDialog(QDialog):
         
         splitter.setSizes([350, 350])
         layout.addWidget(splitter)
+        
+        # 底部倒计时栏
+        self.countdown_label = QLabel("⏱ 预计剩余: --:--:--")
+        self.countdown_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.countdown_label.setStyleSheet("""
+            QLabel {
+                background-color: rgba(0, 0, 0, 0.7);
+                color: #00FF88;
+                font-size: 16px;
+                font-weight: bold;
+                font-family: Consolas, monospace;
+                padding: 8px;
+                border-radius: 4px;
+            }
+        """)
+        self.countdown_label.setVisible(False)
+        layout.addWidget(self.countdown_label)
+        
+        # 进度跟踪变量
+        self.progress_total = 0
+        self.progress_current = 0
+        self._task_start_time = None
+        self._countdown_timer = QTimer()
+        self._countdown_timer.timeout.connect(self._update_countdown)
+        self._last_progress_time = 0
+        self._avg_per_unit = 0
+        self._smoothed_remaining = 0
     
     def log(self, message: str):
         """添加日志"""
@@ -590,7 +617,16 @@ class AccountDetailDialog(QDialog):
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
         self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # 不确定进度
+        self.progress_bar.setRange(0, 0)
+        self.progress_total = 0
+        self.progress_current = 0
+        self._smoothed_remaining = 0
+        
+        self._task_start_time = QElapsedTimer()
+        self._task_start_time.start()
+        self.countdown_label.setText("⏱ 预计剩余: 计算中...")
+        self.countdown_label.setVisible(True)
+        self._countdown_timer.start(1000)
         
         if mode == "刷作业":
             accuracy_config = self.accuracy_spin.value()
@@ -693,6 +729,8 @@ class AccountDetailDialog(QDialog):
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.progress_bar.setVisible(False)
+        self.countdown_label.setVisible(False)
+        self._countdown_timer.stop()
         self.log("⏹️ 任务已停止")
         self.update_status("已停止")
     
@@ -701,9 +739,53 @@ class AccountDetailDialog(QDialog):
         from core.logger import get_logger
         logger = get_logger("AccountDetail")
         
+        if status == "progress_total":
+            try:
+                self.progress_total = int(message)
+                self.progress_bar.setRange(0, self.progress_total)
+                self.progress_bar.setValue(0)
+            except ValueError:
+                pass
+            return
+        
+        if status == "progress_current":
+            try:
+                self.progress_current = int(message)
+                self.progress_bar.setValue(self.progress_current)
+                self._update_countdown()
+            except ValueError:
+                pass
+            return
+        
         self.log(message)
         logger.debug(f"任务进度更新: {message}")
         self.update_status("运行中", status)
+    
+    def _update_countdown(self):
+        """更新倒计时显示"""
+        if self.progress_total <= 0 or self._task_start_time is None:
+            return
+        
+        elapsed = self._task_start_time.elapsed() / 1000.0
+        
+        if self.progress_current <= 0:
+            self.countdown_label.setText("⏱ 预计剩余: 计算中...")
+            return
+        
+        avg_per_unit = elapsed / self.progress_current
+        remaining = avg_per_unit * (self.progress_total - self.progress_current)
+        
+        if self._smoothed_remaining <= 0:
+            self._smoothed_remaining = remaining
+        else:
+            self._smoothed_remaining = self._smoothed_remaining * 0.7 + remaining * 0.3
+        
+        display_remaining = max(0, self._smoothed_remaining)
+        hours = int(display_remaining // 3600)
+        minutes = int((display_remaining % 3600) // 60)
+        seconds = int(display_remaining % 60)
+        
+        self.countdown_label.setText(f"⏱ 预计剩余: {hours:02d}:{minutes:02d}:{seconds:02d}")
     
     def on_study_finished(self, result: dict):
         """任务完成回调"""
@@ -713,6 +795,30 @@ class AccountDetailDialog(QDialog):
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.progress_bar.setVisible(False)
+        self._countdown_timer.stop()
+        
+        completion_style = """
+            QLabel {
+                background-color: rgba(76, 175, 80, 0.85);
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                font-family: Consolas, monospace;
+                padding: 8px;
+                border-radius: 4px;
+            }
+        """
+        
+        if self._task_start_time and self._task_start_time.isValid():
+            total_seconds = int(self._task_start_time.elapsed() / 1000)
+            h = total_seconds // 3600
+            m = (total_seconds % 3600) // 60
+            s = total_seconds % 60
+            self.countdown_label.setText(f"✅ 任务完成! 总用时: {h:02d}:{m:02d}:{s:02d}")
+        else:
+            self.countdown_label.setText("✅ 任务已完成!")
+        self.countdown_label.setStyleSheet(completion_style)
+        self.countdown_label.setVisible(True)
         
         mode = self.mode_combo.currentText()
         if mode == "刷作业":
@@ -758,6 +864,8 @@ class AccountDetailDialog(QDialog):
         import threading
         import time
         import os
+        
+        self._countdown_timer.stop()
         
         try:
             import psutil

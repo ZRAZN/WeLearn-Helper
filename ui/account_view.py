@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton,
     QTableWidget, QTableWidgetItem, QLabel, QFileDialog, QMessageBox,
-    QLineEdit, QDialog, QHeaderView, QAbstractItemView
+    QLineEdit, QDialog, QHeaderView, QAbstractItemView, QFrame
 )
 from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor
 from core.account_manager import AccountManager, Account
@@ -149,6 +149,8 @@ class AccountView(QWidget):
         
         layout.addLayout(toolbar_layout)
         
+        layout.addWidget(self._create_separator())
+        
         self.account_table = QTableWidget()
         self.account_table.setColumnCount(6)
         self.account_table.setHorizontalHeaderLabels([
@@ -156,12 +158,16 @@ class AccountView(QWidget):
         ])
         
         header = self.account_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)
+        header.setDefaultSectionSize(100)
+        header.resizeSection(0, 150)
+        header.resizeSection(3, 180)
+        header.setStretchLastSection(True)
         
         self.account_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.account_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -171,6 +177,8 @@ class AccountView(QWidget):
         
         layout.addWidget(self.account_table)
         
+        layout.addWidget(self._create_separator())
+        
         status_layout = QHBoxLayout()
         self.status_label = QLabel("账号数: 0")
         self.running_label = QLabel("运行中: 0")
@@ -179,6 +187,14 @@ class AccountView(QWidget):
         status_layout.addStretch()
         
         layout.addLayout(status_layout)
+    
+    @staticmethod
+    def _create_separator():
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setStyleSheet("background-color: #999; max-height: 2px; margin: 4px 0;")
+        return separator
     
     def add_account(self):
         """添加账号"""

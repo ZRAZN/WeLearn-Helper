@@ -59,7 +59,7 @@ class Logger:
         
         # 记录启动日志
         self.logger.info("=" * 50)
-        self.logger.info("WeLearn学习助手V4.6.5 启动")
+        self.logger.info("WeLearn学习助手V4.6.7 启动")
         self.logger.info(f"日志文件路径: {log_file}")
         self.logger.info("=" * 50)
     
