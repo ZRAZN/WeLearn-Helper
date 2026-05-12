@@ -277,107 +277,110 @@ class WeLearnUI(QMainWindow):
 
     def show_startup_warning(self):
         """显示启动警告"""
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("使用声明")
-        msg_box.setIcon(QMessageBox.Warning)
-        # 移除问号帮助按钮，添加Qt.Window标志使其在任务栏显示
-        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.Window)
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit
+        from PyQt5.QtMultimedia import QSound
+        import winsound
         
-        # 设置警告窗口图标，使其在任务栏显示
+        # 播放提示音
+        try:
+            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+        except:
+            pass
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("使用声明")
+        dialog.setMinimumSize(500, 400)
+        dialog.resize(500, 400)
+        # 设置窗口标志，使其在任务栏显示
+        dialog.setWindowFlags(Qt.Window | Qt.WindowContextHelpButtonHint & ~Qt.WindowContextHelpButtonHint)
+        
+        # 设置窗口图标
         bg_path = self.get_background_path()
         if bg_path:
             ico_path = os.path.join(os.path.dirname(bg_path), 'ZR.ico')
         else:
             ico_path = None
         if ico_path and os.path.exists(ico_path):
-            msg_box.setWindowIcon(QIcon(ico_path))
+            dialog.setWindowIcon(QIcon(ico_path))
         else:
-            msg_box.setWindowIcon(self.windowIcon())
+            dialog.setWindowIcon(self.windowIcon())
         
-        # 获取背景图片路径（考虑打包后的环境）
-        background_path = self.get_background_path()
-        print(f"启动警告获取到的背景图片路径: {background_path}")
+        # 创建布局
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
-        if background_path and os.path.exists(background_path):
-            # 确保路径使用正斜杠，即使在Windows上
-            background_path = background_path.replace("\\", "/")
-            print(f"启动警告处理后的背景图片路径: {background_path}")
-            
-            msg_box.setStyleSheet(f"""
-                QMessageBox {{
-                    background-image: url(file:///{background_path});
-                    background-position: center;
-                    background-repeat: no-repeat;
-                    background-attachment: fixed;
-                }}
-                QMessageBox QLabel {{
-                    background-color: rgba(255, 255, 255, 220);
-                    padding: 10px;
-                    border-radius: 5px;
-                }}
-                QMessageBox QPushButton {{
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    font-size: 13px;
-                    border-radius: 4px;
-                }}
-                QMessageBox QPushButton:hover {{
-                    background-color: #45a049;
-                }}
-            """)
-        else:
-            # 如果没有背景图片，使用纯色背景
-            msg_box.setStyleSheet("""
-                QMessageBox {
-                    background-color: #f0f0f0;
-                }
-                QMessageBox QLabel {
-                    background-color: rgba(255, 255, 255, 220);
-                    padding: 10px;
-                    border-radius: 5px;
-                }
-                QMessageBox QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    font-size: 13px;
-                    border-radius: 4px;
-                }
-                QMessageBox QPushButton:hover {
-                    background-color: #45a049;
-                }
-            """)
+        # 标题
+        title_label = QLabel("使用声明")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #333;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title_label)
         
-        warning_text = """版权声明：
+        # 内容文本
+        warning_text = QTextEdit()
+        warning_text.setReadOnly(True)
+        warning_text.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(255, 255, 255, 220);
+                padding: 15px;
+                border-radius: 8px;
+                border: 1px solid #ddd;
+                font-size: 13px;
+                line-height: 1.6;
+            }
+        """)
+        
+        content = """<b>WeLearn学习助手V5.0.11版本</b>，由ZR修改并打包。
 
-本软件为WeLearn学习助手V5.0.11版本，由ZR修改并打包。
-
-使用条款：
+<b>使用条款：</b>
 1. 本软件仅供学习交流使用，严禁用于任何商业用途
 2. 软件版权归原开发者所有，本修改版仅作功能优化
 3. 用户使用本软件所产生的任何后果由用户自行承担
 4. 分发本软件时请保持版权信息完整
 
-感谢您的理解与支持！"""
-        msg_box.setText(warning_text)
+<b>感谢您的理解与支持！</b>"""
+        warning_text.setHtml(content)
+        layout.addWidget(warning_text)
         
-        ok_button = msg_box.addButton("我已了解", QMessageBox.AcceptRole)
-        msg_box.setDefaultButton(ok_button)
+        # 确定按钮
+        ok_button = QPushButton("我已了解")
+        ok_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                font-size: 14px;
+                border-radius: 6px;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        ok_button.setDefault(True)
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        msg_box.show()
-        msg_box.setGeometry(
+        # 设置背景
+        if bg_path and os.path.exists(bg_path):
+            pixmap = QPixmap(bg_path)
+            palette = dialog.palette()
+            palette.setBrush(dialog.backgroundRole(), QBrush(pixmap.scaled(
+                dialog.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
+            dialog.setPalette(palette)
+        
+        # 居中显示
+        dialog.setGeometry(
             QStyle.alignedRect(
                 Qt.LeftToRight,
                 Qt.AlignCenter,
-                msg_box.size(),
+                dialog.size(),
                 QApplication.desktop().availableGeometry()
             )
         )
         
-        msg_box.exec_()
+        dialog.exec_()
     
     def show_update_announcement(self):
         """显示更新公告"""
@@ -430,6 +433,13 @@ class WeLearnUI(QMainWindow):
             settings.sync()
         
         print("开始显示更新公告")
+        
+        # 播放提示音
+        import winsound
+        try:
+            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+        except:
+            pass
         
         # 创建自定义对话框以支持滚动功能
         from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QCheckBox, QHBoxLayout, QStyle
