@@ -1,6 +1,5 @@
 import re
 import time
-import threading
 import requests
 from typing import Dict, List, Optional, Tuple, Any
 from core.crypto import generate_cipher_text
@@ -13,7 +12,6 @@ class WeLearnClient:
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         })
-        self._session_lock = threading.Lock()  # 用于保护session访问的锁
 
     def login(self, username, password) -> Tuple[bool, str]:
         try:
@@ -236,40 +234,37 @@ class WeLearnClient:
             }
             ajax_url = f"{self.BASE_URL}/Ajax/SCO.aspx"
 
-            with self._session_lock:
-                self.session.post(
-                    ajax_url,
-                    data={**common_data, "action": "startsco160928"},
-                    headers=common_headers,
-                )
+            self.session.post(
+                ajax_url,
+                data={**common_data, "action": "startsco160928"},
+                headers=common_headers,
+            )
 
             for current_time in range(1, learning_time + 1):
                 time.sleep(1)
                 if current_time % 60 == 0:
-                    with self._session_lock:
-                        self.session.post(
-                            ajax_url,
-                            data={
-                                **common_data,
-                                "action": "keepsco_with_getticket_with_updatecmitime",
-                            },
-                            headers=common_headers,
-                        )
+                    self.session.post(
+                        ajax_url,
+                        data={
+                            **common_data,
+                            "action": "keepsco_with_getticket_with_updatecmitime",
+                        },
+                        headers=common_headers,
+                    )
 
-            with self._session_lock:
-                self.session.post(
-                    ajax_url,
-                    data={
-                        **common_data,
-                        "action": "savescoinfo160928",
-                        "progress": "100",
-                        "crate": "0",
-                        "status": "unknown",
-                        "cstatus": "completed",
-                        "trycount": "0",
-                    },
-                    headers=common_headers,
-                )
+            self.session.post(
+                ajax_url,
+                data={
+                    **common_data,
+                    "action": "savescoinfo160928",
+                    "progress": "100",
+                    "crate": "0",
+                    "status": "unknown",
+                    "cstatus": "completed",
+                    "trycount": "0",
+                },
+                headers=common_headers,
+            )
 
             return True
         except Exception:

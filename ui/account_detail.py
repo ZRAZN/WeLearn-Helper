@@ -617,7 +617,29 @@ class AccountDetailDialog(QDialog):
         
         self._task_start_time = QElapsedTimer()
         self._task_start_time.start()
-        self.countdown_label.setText("⏱ 预计剩余: 计算中...")
+        
+        # 计算预计时长
+        if mode == "刷作业":
+            concurrent = self.homework_concurrent_spin.value()
+            # 刷作业每个课程约5秒，并发处理
+            estimated_seconds = len(units_to_process) * 5 / concurrent
+        else:
+            concurrent = self.concurrent_spin.value()
+            # 刷时长：每单元总时长（分钟转秒），并发处理所有课程
+            # 实际耗时约等于每单元总时长，因为课程是并发处理的
+            estimated_seconds = total_minutes * 60 / concurrent * len(units_to_process)
+        
+        self._estimated_total_seconds = estimated_seconds
+        
+        hours = int(estimated_seconds // 3600)
+        minutes = int((estimated_seconds % 3600) // 60)
+        seconds = int(estimated_seconds % 60)
+        if hours > 0:
+            time_str = f"{hours}小时{minutes}分钟{seconds}秒"
+        else:
+            time_str = f"{minutes}分钟{seconds}秒"
+        
+        self.countdown_label.setText(f"⏱ 预计剩余: {time_str}")
         self.countdown_label.setVisible(True)
         self._countdown_timer.start(1000)
         
@@ -790,41 +812,32 @@ class AccountDetailDialog(QDialog):
     
     def _update_countdown(self):
         """更新倒计时显示"""
-        if self.progress_total <= 0 or self._task_start_time is None:
+        if self._task_start_time is None:
             return
         
         elapsed = self._task_start_time.elapsed() / 1000.0
         
-        # 至少等待3秒后再计算，避免初始波动
-        if elapsed < 3 or self.progress_current <= 0:
-            self.countdown_label.setText("⏱ 预计剩余: 计算中...")
-            return
-        
-        # 计算每个单位的平均耗时
-        avg_per_unit = elapsed / self.progress_current
-        remaining_units = self.progress_total - self.progress_current
-        remaining = avg_per_unit * remaining_units
-        
-        # 使用自适应平滑系数：进度越多，越信任实际数据
-        if self.progress_current < 3:
-            # 前几个进度使用较保守的估计
-            alpha = 0.3
+        # 如果有进度数据，使用进度数据计算更准确的剩余时间
+        if self.progress_total > 0 and self.progress_current > 0:
+            avg_per_unit = elapsed / self.progress_current
+            remaining_units = self.progress_total - self.progress_current
+            remaining = avg_per_unit * remaining_units
+            
+            display_remaining = max(0, remaining)
         else:
-            # 进度越多，越信任实际数据
-            alpha = min(0.8, 0.3 + self.progress_current / self.progress_total * 0.5)
+            # 没有进度数据时，从预计时长开始倒数
+            display_remaining = max(0, self._estimated_total_seconds - elapsed)
         
-        if self._smoothed_remaining <= 0:
-            self._smoothed_remaining = remaining
-        else:
-            self._smoothed_remaining = self._smoothed_remaining * (1 - alpha) + remaining * alpha
-        
-        display_remaining = max(0, self._smoothed_remaining)
         hours = int(display_remaining // 3600)
         minutes = int((display_remaining % 3600) // 60)
         seconds = int(display_remaining % 60)
         
         # 添加进度信息
-        progress_info = f" ({self.progress_current}/{self.progress_total})"
+        if self.progress_total > 0:
+            progress_info = f" ({self.progress_current}/{self.progress_total})"
+        else:
+            progress_info = ""
+        
         self.countdown_label.setText(f"⏱ 预计剩余: {hours:02d}:{minutes:02d}:{seconds:02d}{progress_info}")
     
     def on_study_finished(self, result: dict):
