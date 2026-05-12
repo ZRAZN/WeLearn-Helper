@@ -514,8 +514,11 @@ class TimeStudyThread(QThread):
             self.progress_update.emit("info", f"总共发现 {len(all_courses)} 个课程，开始多单元并发处理...")
             self.progress_update.emit("progress_total", str(len(all_courses)))
             
+            logger.info(f"开始创建线程池，并发数: {self.max_concurrent}")
+            
             # 多单元并发处理所有课程，分批提交避免系统卡顿
             with ThreadPoolExecutor(max_workers=self.max_concurrent) as executor:
+                logger.info("线程池创建成功，开始提交任务")
                 # 提交所有课程任务，分批提交避免同时启动大量线程
                 futures = {}
                 for i, course_data in enumerate(all_courses):
@@ -523,6 +526,8 @@ class TimeStudyThread(QThread):
                     if i > 0 and i % self.max_concurrent == 0:
                         time.sleep(0.05)  # 50ms延迟，让系统有喘息时间
                     futures[executor.submit(self.study_single_course, course_data)] = course_data
+                
+                logger.info(f"任务提交完成，共 {len(futures)} 个任务")
                 
                 # 处理完成的任务
                 completed_count = 0
