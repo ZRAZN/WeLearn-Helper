@@ -228,13 +228,22 @@ class WeLearnClient:
 
     def simulate_time(self, cid, uid, scoid, learning_time) -> bool:
         try:
+            # 每次调用创建独立的session，避免线程安全问题
+            import requests
+            session = requests.Session()
+            session.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+            # 复制主session的cookies
+            session.cookies = self.session.cookies.copy()
+            
             common_data = {"uid": uid, "cid": cid, "scoid": scoid}
             common_headers = {
                 "Referer": f"{self.BASE_URL}/student/StudyCourse.aspx"
             }
             ajax_url = f"{self.BASE_URL}/Ajax/SCO.aspx"
 
-            self.session.post(
+            session.post(
                 ajax_url,
                 data={**common_data, "action": "startsco160928"},
                 headers=common_headers,
@@ -243,7 +252,7 @@ class WeLearnClient:
             for current_time in range(1, learning_time + 1):
                 time.sleep(1)
                 if current_time % 60 == 0:
-                    self.session.post(
+                    session.post(
                         ajax_url,
                         data={
                             **common_data,
@@ -252,7 +261,7 @@ class WeLearnClient:
                         headers=common_headers,
                     )
 
-            self.session.post(
+            session.post(
                 ajax_url,
                 data={
                     **common_data,
