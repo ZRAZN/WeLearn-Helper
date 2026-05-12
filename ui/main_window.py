@@ -115,6 +115,7 @@ class WeLearnUI(QMainWindow):
                 border: 1px solid #ddd;
                 border-radius: 4px;
                 background-color: rgba(255, 255, 255, 0.8);
+                gridline-color: #ddd;
             }
             QTableWidget::item:selected {
                 background-color: #e3f2fd;
@@ -125,6 +126,7 @@ class WeLearnUI(QMainWindow):
                 padding: 8px;
                 border: none;
                 border-bottom: 1px solid #ddd;
+                border-right: 1px solid #ddd;
                 font-weight: bold;
             }
         """)
@@ -490,7 +492,8 @@ class WeLearnUI(QMainWindow):
         announcement_content += "V5.0.11\n"
         announcement_content += "-优化倒计时计算，添加分隔线，更新公告，修复警告页面任务栏图标\n"
         announcement_content += "-修复声明窗口和更新公告窗口在任务栏不显示的问题\n"
-        announcement_content += "-添加弹窗提示音\n\n"
+        announcement_content += "-添加弹窗提示音\n"
+        announcement_content += "-添加失败自动重试功能（最多3次）\n\n"
         
         announcement_content += "V4.6.6\n"
         announcement_content += "-修复了暂停选择彻底关闭依旧无响应的问题\n"

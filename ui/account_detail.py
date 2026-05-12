@@ -55,8 +55,8 @@ class AccountDetailDialog(QDialog):
         self.init_ui()
         self.setWindowTitle(f"账号管理 - {account.nickname or account.username}")
         self.setMinimumSize(700, 500)
-        # 移除右上角的问号帮助按钮，并添加最小化按钮
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.WindowMinimizeButtonHint)
+        # 移除右上角的问号帮助按钮，并添加最小化按钮，设置Qt.WindowType.Window使其在任务栏显示
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowContextHelpButtonHint & ~Qt.WindowType.WindowContextHelpButtonHint | Qt.WindowType.WindowMinimizeButtonHint)
         self.set_background()
     
     def showEvent(self, event):
@@ -825,13 +825,20 @@ class AccountDetailDialog(QDialog):
         if mode == "刷作业":
             msg = f"步骤1成功: {result.get('way1_succeed', 0)}, 失败: {result.get('way1_failed', 0)}\n"
             msg += f"步骤2成功: {result.get('way2_succeed', 0)}, 失败: {result.get('way2_failed', 0)}"
+            retry_count = result.get('retry_count', 0)
+            if retry_count > 0:
+                msg += f"\n重试次数: {retry_count}"
             self.log(f"✅ 刷作业完成！\n{msg}")
             logger.info(f"刷作业任务完成 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 结果: {msg}")
         else:
             completed_units = result.get('completed_units', 0)
             total_units = len(self.current_units) if self.current_units else 0
-            self.log(f"✅ 刷时长完成！已完成 {completed_units}/{total_units} 个单元")
-            logger.info(f"刷时长任务完成 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 完成单元: {completed_units}/{total_units}")
+            retry_count = result.get('retry_count', 0)
+            msg = f"✅ 刷时长完成！已完成 {completed_units}/{total_units} 个单元"
+            if retry_count > 0:
+                msg += f"\n重试次数: {retry_count}"
+            self.log(msg)
+            logger.info(f"刷时长任务完成 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 完成单元: {completed_units}/{total_units}, 重试次数: {retry_count}")
             
 
         

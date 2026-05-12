@@ -208,6 +208,7 @@ class StudyThread(QThread):
         total_way1_succeed, total_way1_failed = 0, 0
         total_way2_succeed, total_way2_failed = 0, 0
         self._stop_flag = False
+        max_retries = 3  # 最大重试次数
 
         try:
             unit_indices = self.unit_idx if isinstance(self.unit_idx, list) else [self.unit_idx]
@@ -236,15 +237,41 @@ class StudyThread(QThread):
                 )
                 self.progress_update.emit("progress_current", str(i + 1))
 
+            # 如果有失败项，进行重试
+            retry_count = 0
+            while total_way1_failed > 0 and retry_count < max_retries and not self._stop_flag:
+                retry_count += 1
+                self.progress_update.emit("info", f"\n=== 检测到失败项，开始第 {retry_count} 次重试 ===")
+                logger.info(f"检测到 {total_way1_failed} 个失败项，开始第 {retry_count} 次重试")
+                
+                retry_way1_failed = 0
+                for i, unit_index in enumerate(unit_indices):
+                    if self._stop_flag:
+                        break
+                    
+                    # 重新处理每个单元，只处理失败的课程
+                    result = self.process_unit(unit_index)
+                    if result[1] > 0:  # 如果还有失败
+                        retry_way1_failed += result[1]
+                    total_way1_succeed += result[0]
+                    total_way2_succeed += result[2]
+                    total_way2_failed += result[3]
+                
+                total_way1_failed = retry_way1_failed
+                if total_way1_failed > 0:
+                    self.progress_update.emit("info", f"第 {retry_count} 次重试完成，仍有 {total_way1_failed} 个失败项")
+                else:
+                    self.progress_update.emit("info", f"第 {retry_count} 次重试完成，所有项目已成功")
 
             result = {
                 "way1_succeed": total_way1_succeed,
                 "way1_failed": total_way1_failed,
                 "way2_succeed": total_way2_succeed,
                 "way2_failed": total_way2_failed,
+                "retry_count": retry_count if 'retry_count' in locals() else 0,
             }
             
-            logger.info(f"刷作业任务完成 - 总计步骤1成功: {total_way1_succeed}, 失败: {total_way1_failed}, 步骤2成功: {total_way2_succeed}, 失败: {total_way2_failed}")
+            logger.info(f"刷作业任务完成 - 总计步骤1成功: {total_way1_succeed}, 失败: {total_way1_failed}, 步骤2成功: {total_way2_succeed}, 失败: {total_way2_failed}, 重试次数: {result['retry_count']}")
             self.study_finished.emit(result)
 
         except Exception as e:
@@ -462,6 +489,9 @@ class TimeStudyThread(QThread):
         
         total_success, total_fail = 0, 0
         self._stop_flag = False
+        max_retries = 3  # 最大重试次数
+        retry_count = 0
+        failed_courses = []
 
         try:
             # 准备所有单元的课程数据
@@ -475,6 +505,7 @@ class TimeStudyThread(QThread):
                     "way1_failed": 0,
                     "way2_succeed": 0,
                     "way2_failed": 0,
+                    "retry_count": 0,
                 }
                 self.study_finished.emit(result)
                 return
@@ -506,20 +537,59 @@ class TimeStudyThread(QThread):
                         total_success += 1
                     else:
                         total_fail += 1
+                        # 记录失败的课程
+                        course_data = futures[future]
+                        failed_courses.append(course_data)
                     
                     completed_count += 1
                     progress_percent = int(completed_count / len(all_courses) * 100)
                     self.progress_update.emit("progress", f"进度: {completed_count}/{len(all_courses)} ({progress_percent}%)")
                     self.progress_update.emit("progress_current", str(completed_count))
             
+            # 如果有失败项，进行重试
+            while failed_courses and retry_count < max_retries and not self._stop_flag:
+                retry_count += 1
+                self.progress_update.emit("info", f"\n=== 检测到 {len(failed_courses)} 个失败项，开始第 {retry_count} 次重试 ===")
+                logger.info(f"检测到 {len(failed_courses)} 个失败项，开始第 {retry_count} 次重试")
+                
+                retry_failed = []
+                with ThreadPoolExecutor(max_workers=self.max_concurrent) as executor:
+                    futures = {}
+                    for i, course_data in enumerate(failed_courses):
+                        if i > 0 and i % self.max_concurrent == 0:
+                            time.sleep(0.05)
+                        futures[executor.submit(self.study_single_course, course_data)] = course_data
+                    
+                    completed_count = 0
+                    for future in as_completed(futures):
+                        if self._stop_flag:
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            break
+                        
+                        success, course_id = future.result()
+                        if success:
+                            total_success += 1
+                            total_fail -= 1
+                        else:
+                            course_data = futures[future]
+                            retry_failed.append(course_data)
+                        
+                        completed_count += 1
+                        self.progress_update.emit("info", f"重试进度: {completed_count}/{len(failed_courses)}")
+                
+                failed_courses = retry_failed
+                if failed_courses:
+                    self.progress_update.emit("info", f"第 {retry_count} 次重试完成，仍有 {len(failed_courses)} 个失败项")
+                else:
+                    self.progress_update.emit("info", f"第 {retry_count} 次重试完成，所有项目已成功")
 
-            
-            logger.info(f"刷时长任务完成 - 总计成功: {total_success}, 失败: {total_fail}")
+            logger.info(f"刷时长任务完成 - 总计成功: {total_success}, 失败: {total_fail}, 重试次数: {retry_count}")
             result = {
                 "way1_succeed": total_success,
                 "way1_failed": total_fail,
                 "way2_succeed": total_success,
                 "way2_failed": total_fail,
+                "retry_count": retry_count,
             }
             self.study_finished.emit(result)
 
