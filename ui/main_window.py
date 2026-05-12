@@ -283,11 +283,12 @@ class WeLearnUI(QMainWindow):
         except:
             pass
         
-        msg_box = QMessageBox(self)
+        # 不设置parent，使其在任务栏显示
+        msg_box = QMessageBox()
         msg_box.setWindowTitle("使用声明")
         msg_box.setIcon(QMessageBox.Warning)
-        # 移除问号帮助按钮，设置Qt.Tool使其在任务栏显示
-        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.Tool)
+        # 移除问号帮助按钮
+        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         
         # 设置警告窗口图标
         bg_path = self.get_background_path()
@@ -449,12 +450,13 @@ class WeLearnUI(QMainWindow):
         from PyQt5.QtCore import Qt, QSize
         from PyQt5.QtGui import QPixmap, QPalette
         
-        dialog = QDialog(self)
+        # 不设置parent，使其在任务栏显示
+        dialog = QDialog()
         dialog.setWindowTitle("更新公告")
         dialog.setMinimumSize(600, 500)
         dialog.resize(600, 500)  # 设置初始大小
-        # 移除问号帮助按钮，设置Qt.Tool使其在任务栏显示
-        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.Tool)
+        # 移除问号帮助按钮
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         
         # 设置窗口图标
         bg_path = self.get_background_path()
