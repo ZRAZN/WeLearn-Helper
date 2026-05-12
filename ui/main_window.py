@@ -161,7 +161,8 @@ class WeLearnUI(QMainWindow):
             else:
                 del self.detail_dialogs[username]
         
-        dialog = AccountDetailDialog(account, self)
+        # 不设置parent，使其成为独立窗口
+        dialog = AccountDetailDialog(account)
         dialog.status_updated.connect(self.on_account_status_updated)
         dialog.finished.connect(lambda result, u=username: self.on_detail_closed(u))
         

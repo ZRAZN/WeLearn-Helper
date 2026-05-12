@@ -50,6 +50,11 @@ class AccountDetailDialog(QDialog):
         self.units_thread = None
         self.study_thread = None  # 刷作业/刷时长通用
         
+        # 任务进度管理
+        from core.task_progress import TaskProgress
+        self.task_progress = TaskProgress()
+        self.current_task_id = None
+        
 
         
         self.init_ui()
@@ -674,6 +679,40 @@ class AccountDetailDialog(QDialog):
         logger.info("任务线程创建完成，连接信号并启动")
         self.study_thread.progress_update.connect(self.on_progress_update)
         self.study_thread.study_finished.connect(self.on_study_finished)
+        
+        # 保存任务进度
+        self.current_task_id = self.task_progress.generate_task_id(
+            self.current_course['cid'], self.uid, mode
+        )
+        task_config = {}
+        if mode == "刷作业":
+            task_config = {
+                "accuracy": accuracy_config,
+                "concurrent": homework_concurrent,
+                "course_name": self.current_course['name']
+            }
+        else:
+            task_config = {
+                "total_minutes": total_minutes,
+                "random_range": random_range,
+                "concurrent": concurrent,
+                "course_name": self.current_course['name']
+            }
+        
+        self.task_progress.save_task_progress(
+            task_id=self.current_task_id,
+            task_type=mode,
+            cid=self.current_course['cid'],
+            uid=self.uid,
+            classid=self.classid,
+            unit_indices=units_to_process,
+            current_units=self.current_units,
+            completed_units=[],
+            completed_courses={},
+            task_config=task_config
+        )
+        logger.info(f"任务进度已保存 - 任务ID: {self.current_task_id}")
+        
         self.study_thread.start()
     
     def stop_study(self):
