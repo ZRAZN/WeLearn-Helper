@@ -60,8 +60,8 @@ class AccountDetailDialog(QDialog):
         self.init_ui()
         self.setWindowTitle(f"账号管理 - {account.nickname or account.username}")
         self.setMinimumSize(700, 500)
-        # 移除右上角的问号帮助按钮，并添加最小化按钮，设置Qt.WindowType.Window使其在任务栏显示
-        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowContextHelpButtonHint & ~Qt.WindowType.WindowContextHelpButtonHint | Qt.WindowType.WindowMinimizeButtonHint)
+        # 移除右上角的问号帮助按钮，并添加最小化和关闭按钮
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowCloseButtonHint)
         self.set_background()
     
     def showEvent(self, event):
