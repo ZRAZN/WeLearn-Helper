@@ -353,8 +353,6 @@ class TimeStudyThread(QThread):
         course_id = chapter["id"]
         course_location = chapter.get("location", "未知课程")
         
-
-        
         # 获取当前单元的课程时长
         if unit_index not in self.unit_course_times:
             logger.error(f"单元 {unit_index + 1} 的时长信息未计算")
@@ -390,8 +388,14 @@ class TimeStudyThread(QThread):
             "start", f"[单元{unit_index + 1}] {course_location} - {time_str}"
         )
         
+        # 每个线程使用独立的session，避免线程安全问题
+        from core.api import WeLearnClient
+        thread_client = WeLearnClient()
+        # 复制主客户端的登录状态
+        thread_client.session.cookies = self.client.session.cookies.copy()
+        
         logger.debug(f"调用simulate_time方法: 课程ID={course_id}, 时长={per_course_time}秒")
-        success = self.client.simulate_time(self.cid, self.uid, course_id, per_course_time)
+        success = thread_client.simulate_time(self.cid, self.uid, course_id, per_course_time)
         
         if success:
             logger.info(f"课程时长刷取成功: 单元{unit_index + 1} - {course_location}")
