@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QThread, pyqtSignal
 import random
+import time
 from core.api import WeLearnClient
 
 class LoginThread(QThread):
@@ -167,12 +168,14 @@ class StudyThread(QThread):
             
             logger.info(f"单元 {unit_index + 1} 有 {len(courses_to_process)} 个课程需要处理")
             
-            # 使用线程池并发处理课程
+            # 使用线程池并发处理课程，分批提交避免系统卡顿
             with ThreadPoolExecutor(max_workers=self.max_concurrent) as executor:
-                futures = {
-                    executor.submit(self.process_single_course, course): course 
-                    for course in courses_to_process
-                }
+                futures = {}
+                for i, course in enumerate(courses_to_process):
+                    # 分批提交任务，每批之间添加小延迟
+                    if i > 0 and i % self.max_concurrent == 0:
+                        time.sleep(0.05)  # 50ms延迟，让系统有喘息时间
+                    futures[executor.submit(self.process_single_course, course)] = course
                 
                 for future in as_completed(futures):
                     if self._stop_flag:
@@ -480,13 +483,15 @@ class TimeStudyThread(QThread):
             self.progress_update.emit("info", f"总共发现 {len(all_courses)} 个课程，开始多单元并发处理...")
             self.progress_update.emit("progress_total", str(len(all_courses)))
             
-            # 多单元并发处理所有课程
+            # 多单元并发处理所有课程，分批提交避免系统卡顿
             with ThreadPoolExecutor(max_workers=self.max_concurrent) as executor:
-                # 提交所有课程任务
-                futures = {
-                    executor.submit(self.study_single_course, course_data): course_data 
-                    for course_data in all_courses
-                }
+                # 提交所有课程任务，分批提交避免同时启动大量线程
+                futures = {}
+                for i, course_data in enumerate(all_courses):
+                    # 分批提交任务，每批之间添加小延迟
+                    if i > 0 and i % self.max_concurrent == 0:
+                        time.sleep(0.05)  # 50ms延迟，让系统有喘息时间
+                    futures[executor.submit(self.study_single_course, course_data)] = course_data
                 
                 # 处理完成的任务
                 completed_count = 0

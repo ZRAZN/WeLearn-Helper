@@ -14,19 +14,7 @@ from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor
 from PyQt5.QtMultimedia import QSound
 from core.api import WeLearnClient
 from core.account_manager import Account
-
-
-# 直接导入workers模块，避免使用ui.workers
-import sys
-import os
-
-# 添加当前目录到路径
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
-# 直接导入workers模块
-import workers
+from ui import workers
 LoginThread = workers.LoginThread
 CourseThread = workers.CourseThread
 UnitsThread = workers.UnitsThread
@@ -191,7 +179,7 @@ class AccountDetailDialog(QDialog):
         homework_row2.addWidget(QLabel("并发数:"))
         self.homework_concurrent_spin = QSpinBox()
         self.homework_concurrent_spin.setRange(1, 20)
-        self.homework_concurrent_spin.setValue(5)
+        self.homework_concurrent_spin.setValue(20)
         self.homework_concurrent_spin.setToolTip("同时处理多少个课程，越高刷得越快")
         homework_row2.addWidget(self.homework_concurrent_spin)
         homework_row2.addStretch()
@@ -768,24 +756,37 @@ class AccountDetailDialog(QDialog):
         
         elapsed = self._task_start_time.elapsed() / 1000.0
         
-        if self.progress_current <= 0:
+        # 至少等待3秒后再计算，避免初始波动
+        if elapsed < 3 or self.progress_current <= 0:
             self.countdown_label.setText("⏱ 预计剩余: 计算中...")
             return
         
+        # 计算每个单位的平均耗时
         avg_per_unit = elapsed / self.progress_current
-        remaining = avg_per_unit * (self.progress_total - self.progress_current)
+        remaining_units = self.progress_total - self.progress_current
+        remaining = avg_per_unit * remaining_units
+        
+        # 使用自适应平滑系数：进度越多，越信任实际数据
+        if self.progress_current < 3:
+            # 前几个进度使用较保守的估计
+            alpha = 0.3
+        else:
+            # 进度越多，越信任实际数据
+            alpha = min(0.8, 0.3 + self.progress_current / self.progress_total * 0.5)
         
         if self._smoothed_remaining <= 0:
             self._smoothed_remaining = remaining
         else:
-            self._smoothed_remaining = self._smoothed_remaining * 0.7 + remaining * 0.3
+            self._smoothed_remaining = self._smoothed_remaining * (1 - alpha) + remaining * alpha
         
         display_remaining = max(0, self._smoothed_remaining)
         hours = int(display_remaining // 3600)
         minutes = int((display_remaining % 3600) // 60)
         seconds = int(display_remaining % 60)
         
-        self.countdown_label.setText(f"⏱ 预计剩余: {hours:02d}:{minutes:02d}:{seconds:02d}")
+        # 添加进度信息
+        progress_info = f" ({self.progress_current}/{self.progress_total})"
+        self.countdown_label.setText(f"⏱ 预计剩余: {hours:02d}:{minutes:02d}:{seconds:02d}{progress_info}")
     
     def on_study_finished(self, result: dict):
         """任务完成回调"""

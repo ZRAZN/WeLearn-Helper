@@ -11,25 +11,13 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIcon, QBitmap, QPixmap, QPainter, QBrush
 
-# 直接导入模块，避免使用ui前缀
-import sys
-import os
-
-# 添加当前目录到路径
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
-# 直接导入模块
-import account_view
-import account_detail
-import core.account_manager
+# 使用标准绝对导入
+from ui import account_view
+from ui import account_detail
+from core import account_manager
 AccountView = account_view.AccountView
 AccountDetailDialog = account_detail.AccountDetailDialog
-Account = core.account_manager.Account
+Account = account_manager.Account
 
 
 class WeLearnUI(QMainWindow):
@@ -43,7 +31,7 @@ class WeLearnUI(QMainWindow):
         self.detail_dialogs = {}  # 存储打开的详情对话框
         self.tray_icon = None     # 系统托盘图标
         self.tray_reminder_timer = None  # 托盘提醒定时器
-        self.version = "V4.6.7"     # 软件版本号
+        self.version = "V5.0.11"     # 软件版本号
         self.init_ui()
         self.init_tray()  # 初始化系统托盘
         
@@ -65,7 +53,7 @@ class WeLearnUI(QMainWindow):
         QTimer.singleShot(100, self.center_window)
     
     def init_ui(self):
-        self.setWindowTitle("ZR | WeLearn学习助手 V4.6.7    致力于把大学生的时间还给大学生")
+        self.setWindowTitle("ZR | WeLearn学习助手 V5.0.11    致力于把大学生的时间还给大学生")
         self.setGeometry(100, 100, 900, 600)
         self.setMinimumSize(800, 500)
         
@@ -127,6 +115,7 @@ class WeLearnUI(QMainWindow):
                 border: 1px solid #ddd;
                 border-radius: 4px;
                 background-color: rgba(255, 255, 255, 0.8);
+                gridline-color: #ddd;
             }
             QTableWidget::item:selected {
                 background-color: #e3f2fd;
@@ -137,6 +126,7 @@ class WeLearnUI(QMainWindow):
                 padding: 8px;
                 border: none;
                 border-bottom: 1px solid #ddd;
+                border-right: 1px solid #ddd;
                 font-weight: bold;
             }
         """)
@@ -290,8 +280,8 @@ class WeLearnUI(QMainWindow):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("使用声明")
         msg_box.setIcon(QMessageBox.Warning)
-        # 移除问号帮助按钮
-        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        # 移除问号帮助按钮，添加Qt.Window标志使其在任务栏显示
+        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.Window)
         
         # 设置警告窗口图标，使其在任务栏显示
         bg_path = self.get_background_path()
@@ -363,7 +353,7 @@ class WeLearnUI(QMainWindow):
         
         warning_text = """版权声明：
 
-本软件为WeLearn学习助手V4.6.7版本，由ZR修改并打包。
+本软件为WeLearn学习助手V5.0.11版本，由ZR修改并打包。
 
 使用条款：
 1. 本软件仅供学习交流使用，严禁用于任何商业用途
@@ -418,7 +408,7 @@ class WeLearnUI(QMainWindow):
         dont_show = settings.value("General/dont_show_update_announcement", False, type=bool)
         announcement_shown = settings.value("General/announcement_shown", False, type=bool)
         last_version = settings.value("General/last_version", "", type=str)
-        current_version = "V4.6.7"  # 更新当前版本号
+        current_version = "V5.0.11"  # 更新当前版本号
         
         print(f"更新公告设置: 不再提醒={dont_show}")
         print(f"公告已显示={announcement_shown}")
@@ -450,8 +440,19 @@ class WeLearnUI(QMainWindow):
         dialog.setWindowTitle("更新公告")
         dialog.setMinimumSize(600, 500)
         dialog.resize(600, 500)  # 设置初始大小
-        # 移除问号帮助按钮
-        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        # 移除问号帮助按钮，添加Qt.Window标志使其在任务栏显示
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.Window)
+        
+        # 设置窗口图标，使其在任务栏显示
+        bg_path = self.get_background_path()
+        if bg_path:
+            ico_path = os.path.join(os.path.dirname(bg_path), 'ZR.ico')
+        else:
+            ico_path = None
+        if ico_path and os.path.exists(ico_path):
+            dialog.setWindowIcon(QIcon(ico_path))
+        else:
+            dialog.setWindowIcon(self.windowIcon())
         
         # 设置背景图片 - 使用更可靠的方法
         background_path = self.get_background_path()
@@ -471,12 +472,8 @@ class WeLearnUI(QMainWindow):
 
         
         # 最新更新公告
-        announcement_content += "V4.6.7\n"
-        announcement_content += "-为主页面表格添加了拖动调节列宽功能\n"
-        announcement_content += "-为账号详情页任务进度添加了进度条和倒计时显示\n"
-        announcement_content += "-优化了预计剩余时间的计算方式，更加平滑准确\n"
-        announcement_content += "-为主页面各区域之间添加了明显分隔线\n"
-        announcement_content += "-修复了启动警告页面在任务栏不显示图标的问题\n\n"
+        announcement_content += "V5.0.11\n"
+        announcement_content += "-优化倒计时计算，添加分隔线，更新公告，修复警告页面任务栏图标\n\n"
         
         announcement_content += "V4.6.6\n"
         announcement_content += "-修复了暂停选择彻底关闭依旧无响应的问题\n"
