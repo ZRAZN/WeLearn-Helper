@@ -11,25 +11,13 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIcon, QBitmap, QPixmap, QPainter, QBrush
 
-# 直接导入模块，避免使用ui前缀
-import sys
-import os
-
-# 添加当前目录到路径
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
-# 直接导入模块
-import account_view
-import account_detail
-import core.account_manager
+# 使用标准绝对导入
+from ui import account_view
+from ui import account_detail
+from core import account_manager
 AccountView = account_view.AccountView
 AccountDetailDialog = account_detail.AccountDetailDialog
-Account = core.account_manager.Account
+Account = account_manager.Account
 
 
 class WeLearnUI(QMainWindow):
