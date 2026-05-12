@@ -292,7 +292,7 @@ class WeLearnUI(QMainWindow):
         dialog.setMinimumSize(500, 400)
         dialog.resize(500, 400)
         # 设置窗口标志，使其在任务栏显示
-        dialog.setWindowFlags(Qt.Window | Qt.WindowContextHelpButtonHint & ~Qt.WindowContextHelpButtonHint)
+        dialog.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowContextHelpButtonHint & ~Qt.WindowType.WindowContextHelpButtonHint)
         
         # 设置窗口图标
         bg_path = self.get_background_path()
@@ -451,7 +451,7 @@ class WeLearnUI(QMainWindow):
         dialog.setMinimumSize(600, 500)
         dialog.resize(600, 500)  # 设置初始大小
         # 移除问号帮助按钮，添加Qt.Window标志使其在任务栏显示
-        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.Window)
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint | Qt.WindowType.Window)
         
         # 设置窗口图标，使其在任务栏显示
         bg_path = self.get_background_path()
