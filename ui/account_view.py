@@ -209,6 +209,26 @@ class AccountView(QWidget):
                 msg_box.exec_()
                 return
             
+            # 检查重复账号
+            existing = self.account_manager.get_account(username)
+            if existing:
+                nickname_text = f"（昵称: {existing.nickname}）" if existing.nickname else ""
+                msg_box = QMessageBox(QMessageBox.Warning, "重复账号", 
+                    f"用户名 '{username}' 已存在 {nickname_text}\n\n是否要用新密码覆盖现有账号？")
+                msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                if msg_box.exec_() == QMessageBox.StandardButton.Yes:
+                    # 更新密码
+                    self.account_manager.update_account_password(username, password)
+                    if nickname:
+                        self.account_manager.update_account_nickname(username, nickname)
+                    self.refresh_table()
+                    msg_box = QMessageBox(QMessageBox.Information, "成功", "账号信息已更新")
+                    msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                    msg_box.exec_()
+                return
+            
             if self.account_manager.add_account(username, password, nickname):
                 self.refresh_table()
                 msg_box = QMessageBox(QMessageBox.Information, "成功", "账号添加成功")

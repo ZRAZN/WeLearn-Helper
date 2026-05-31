@@ -102,6 +102,26 @@ class AccountManager:
                 return acc
         return None
     
+    def update_account_password(self, username: str, new_password: str) -> bool:
+        """更新账号密码"""
+        for acc in self.accounts:
+            if acc.username == username:
+                acc.password = new_password
+                self.save_accounts()
+                logger.info(f"已更新账号密码: {username}")
+                return True
+        return False
+    
+    def update_account_nickname(self, username: str, new_nickname: str) -> bool:
+        """更新账号昵称"""
+        for acc in self.accounts:
+            if acc.username == username:
+                acc.nickname = new_nickname
+                self.save_accounts()
+                logger.info(f"已更新账号昵称: {username}")
+                return True
+        return False
+    
     def get_all_accounts(self) -> List[Account]:
         """获取所有账号"""
         return self.accounts.copy()
