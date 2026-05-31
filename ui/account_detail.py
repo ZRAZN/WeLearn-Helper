@@ -775,6 +775,12 @@ class AccountDetailDialog(QDialog):
                 logger.info("任务线程已正常停止")
                 self.log("任务已停止")
         
+        # 保存任务进度
+        if self.current_task_id:
+            self.task_progress.mark_task_completed(self.current_task_id)
+            logger.info(f"任务进度已标记为完成: {self.current_task_id}")
+            self.current_task_id = None
+        
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.progress_bar.setVisible(False)
@@ -1012,6 +1018,12 @@ class AccountDetailDialog(QDialog):
                 logger.error(f"清理任务线程时出错: {str(e)}")
                 # 即使出错也要继续清理
                 self.study_thread = None
+        
+        # 保存任务进度
+        if self.current_task_id:
+            self.task_progress.mark_task_completed(self.current_task_id)
+            logger.info(f"关闭窗口时保存任务进度: {self.current_task_id}")
+            self.current_task_id = None
         
         # 关闭客户端连接
         if hasattr(self, 'client') and self.client:

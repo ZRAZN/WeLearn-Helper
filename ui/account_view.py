@@ -212,6 +212,8 @@ class AccountView(QWidget):
             # 检查重复账号
             existing = self.account_manager.get_account(username)
             if existing:
+                # 高亮选中重复账号
+                self.highlight_account(username)
                 nickname_text = f"（昵称: {existing.nickname}）" if existing.nickname else ""
                 msg_box = QMessageBox(QMessageBox.Warning, "重复账号", 
                     f"用户名 '{username}' 已存在 {nickname_text}\n\n是否要用新密码覆盖现有账号？")
@@ -442,6 +444,15 @@ class AccountView(QWidget):
         self.status_label.setText(f"账号数: {len(accounts)}")
         self.running_label.setText(f"运行中: {running_count}")
         logger.info(f"账号列表刷新完成，共 {len(accounts)} 个账号，其中 {running_count} 个运行中")
+    
+    def highlight_account(self, username: str):
+        """高亮选中指定账号"""
+        for i in range(self.account_table.rowCount()):
+            item = self.account_table.item(i, 0)
+            if item and item.text() == username:
+                self.account_table.selectRow(i)
+                self.account_table.scrollToItem(item)
+                break
     
     def on_manage_clicked(self):
         """管理按钮点击"""

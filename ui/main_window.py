@@ -37,6 +37,7 @@ class WeLearnUI(QMainWindow):
         
         self.show_startup_warning()  # 显示启动警告
         self.show_update_announcement()  # 显示更新公告
+        QTimer.singleShot(1000, self.check_incomplete_tasks)  # 检查未完成任务
 
     
     def center_window(self):
@@ -179,6 +180,27 @@ class WeLearnUI(QMainWindow):
         if username in self.detail_dialogs:
             del self.detail_dialogs[username]
         self.account_view.refresh_table()
+    
+    def check_incomplete_tasks(self):
+        """检查是否有未完成的任务"""
+        from core.task_progress import TaskProgress
+        task_progress = TaskProgress()
+        incomplete_tasks = task_progress.get_incomplete_tasks()
+        
+        if incomplete_tasks:
+            task_list = "\n".join([f"- {t.get('task_type', '未知')}: {t.get('last_update_time_str', '未知时间')}" for t in incomplete_tasks])
+            msg_box = QMessageBox(QMessageBox.Question, "未完成任务", 
+                f"检测到 {len(incomplete_tasks)} 个未完成的任务：\n{task_list}\n\n是否清除这些任务记录？")
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+            
+            if msg_box.exec_() == QMessageBox.StandardButton.Yes:
+                for task in incomplete_tasks:
+                    task_progress.clear_task_progress(task.get('task_id', ''))
+                self.status_bar.showMessage("已清除未完成任务记录")
+            else:
+                self.status_bar.showMessage(f"有 {len(incomplete_tasks)} 个未完成任务记录")
     
     def show_about(self):
         """显示关于对话框"""
