@@ -300,14 +300,6 @@ class WeLearnUI(QMainWindow):
 
     def show_startup_warning(self):
         """显示启动警告"""
-        import winsound
-        
-        # 播放提示音
-        try:
-            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
-        except:
-            pass
-        
         # 不设置parent，使其在任务栏显示
         msg_box = QMessageBox()
         msg_box.setWindowTitle("使用声明")

@@ -775,10 +775,9 @@ class AccountDetailDialog(QDialog):
                 logger.info("任务线程已正常停止")
                 self.log("任务已停止")
         
-        # 保存任务进度
+        # 保持任务暂停状态（不标记为完成）
         if self.current_task_id:
-            self.task_progress.mark_task_completed(self.current_task_id)
-            logger.info(f"任务进度已标记为完成: {self.current_task_id}")
+            logger.info(f"任务已暂停: {self.current_task_id}")
             self.current_task_id = None
         
         self.start_btn.setEnabled(True)
@@ -931,6 +930,17 @@ class AccountDetailDialog(QDialog):
         import time
         import os
         
+        # 如果有任务在运行，提示用户
+        if self.study_thread and self.study_thread.isRunning():
+            msg_box = QMessageBox(QMessageBox.Question, "任务正在运行", 
+                "当前有任务正在运行，关闭窗口会停止任务。\n\n是否继续关闭？")
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+            if msg_box.exec_() == QMessageBox.StandardButton.No:
+                event.ignore()
+                return
+        
         self._countdown_timer.stop()
         
         try:
@@ -1019,10 +1029,9 @@ class AccountDetailDialog(QDialog):
                 # 即使出错也要继续清理
                 self.study_thread = None
         
-        # 保存任务进度
+        # 保存任务进度（保持暂停状态，不标记为完成）
         if self.current_task_id:
-            self.task_progress.mark_task_completed(self.current_task_id)
-            logger.info(f"关闭窗口时保存任务进度: {self.current_task_id}")
+            logger.info(f"关闭窗口时保持任务暂停状态: {self.current_task_id}")
             self.current_task_id = None
         
         # 关闭客户端连接
