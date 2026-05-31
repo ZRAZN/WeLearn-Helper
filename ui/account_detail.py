@@ -75,6 +75,105 @@ class AccountDetailDialog(QDialog):
             from PyQt5.QtCore import QTimer
             QTimer.singleShot(500, self.do_login)
     
+    def check_incomplete_task(self):
+        """检查是否有未完成的任务"""
+        incomplete = self.task_progress.get_incomplete_tasks()
+        if incomplete:
+            # 找到当前账号的未完成任务
+            for task in incomplete:
+                if task.get('uid') == self.uid:
+                    task_type = task.get('task_type', '未知')
+                    task_config = task.get('task_config', {})
+                    course_name = task_config.get('course_name', '未知课程')
+                    
+                    msg_box = QMessageBox(QMessageBox.Question, "未完成任务", 
+                        f"检测到未完成的{task_type}任务：\n课程: {course_name}\n\n是否继续该任务？")
+                    msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                    msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
+                    msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                    
+                    if msg_box.exec_() == QMessageBox.StandardButton.Yes:
+                        self.continue_task(task)
+                    else:
+                        self.task_progress.clear_task_progress(task.get('task_id', ''))
+                    break
+    
+    def continue_task(self, task):
+        """继续未完成的任务"""
+        from core.logger import get_logger
+        logger = get_logger("AccountDetail")
+        
+        task_type = task.get('task_type', '')
+        task_config = task.get('task_config', {})
+        unit_indices = task.get('unit_indices', [])
+        current_units = task.get('current_units', [])
+        
+        logger.info(f"继续任务: {task_type}, 单元: {unit_indices}")
+        self.log(f"继续未完成的{task_type}任务...")
+        
+        if task_type == "刷时长":
+            # 设置刷时长参数
+            self.mode_combo.setCurrentText("刷时长")
+            total_minutes = task_config.get('total_minutes', 60)
+            concurrent = task_config.get('concurrent', 20)
+            
+            self.time_spin.setValue(total_minutes // 60 if total_minutes >= 60 else total_minutes)
+            if total_minutes >= 60:
+                self.time_unit_combo.setCurrentText("小时")
+            else:
+                self.time_unit_combo.setCurrentText("分钟")
+            self.concurrent_spin.setValue(concurrent)
+            
+            self.current_units = current_units
+            self.uid = task.get('uid', '')
+            self.classid = task.get('classid', '')
+            
+            # 选中单元
+            self.unit_list.clear()
+            for i, unit in enumerate(current_units):
+                unit_name = unit.get('name', f'单元 {i+1}')
+                item = QListWidgetItem(f"单元 {i+1}: {unit_name}")
+                item.setCheckState(Qt.CheckState.Checked if i in unit_indices else Qt.CheckState.Unchecked)
+                item.setData(Qt.ItemDataRole.UserRole, i)
+                self.unit_list.addItem(item)
+            
+            self.start_btn.setEnabled(True)
+            
+            # 清除旧任务记录
+            self.task_progress.clear_task_progress(task.get('task_id', ''))
+            
+            # 自动开始
+            QTimer.singleShot(500, self.start_study)
+        
+        elif task_type == "刷作业":
+            self.mode_combo.setCurrentText("刷作业")
+            accuracy = task_config.get('accuracy', 100)
+            concurrent = task_config.get('concurrent', 20)
+            
+            self.accuracy_spin.setValue(accuracy)
+            self.homework_concurrent_spin.setValue(concurrent)
+            
+            self.current_units = current_units
+            self.uid = task.get('uid', '')
+            self.classid = task.get('classid', '')
+            
+            # 选中单元
+            self.unit_list.clear()
+            for i, unit in enumerate(current_units):
+                unit_name = unit.get('name', f'单元 {i+1}')
+                item = QListWidgetItem(f"单元 {i+1}: {unit_name}")
+                item.setCheckState(Qt.CheckState.Checked if i in unit_indices else Qt.CheckState.Unchecked)
+                item.setData(Qt.ItemDataRole.UserRole, i)
+                self.unit_list.addItem(item)
+            
+            self.start_btn.setEnabled(True)
+            
+            # 清除旧任务记录
+            self.task_progress.clear_task_progress(task.get('task_id', ''))
+            
+            # 自动开始
+            QTimer.singleShot(500, self.start_study)
+    
     def init_ui(self):
         layout = QVBoxLayout(self)
         
@@ -372,6 +471,9 @@ class AccountDetailDialog(QDialog):
             self.update_status("已登录")
             # 自动刷新课程
             self.refresh_courses()
+            # 检查是否有未完成的任务
+            from PyQt5.QtCore import QTimer
+            QTimer.singleShot(500, self.check_incomplete_task)
         else:
             self.login_btn.setText("🔐 登录")
             self.log(f"❌ 登录失败: {message}")
