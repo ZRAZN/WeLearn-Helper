@@ -14,62 +14,77 @@ class WeLearnClient:
         })
 
     def login(self, username, password) -> Tuple[bool, str]:
-        try:
-            response = self.session.get(
-                f"{self.BASE_URL}/user/prelogin.aspx?loginret=http://welearn.sflep.com/user/loginredirect.aspx",
-                timeout=10,
-            )
+        import time as time_module
+        
+        for attempt in range(3):
+            try:
+                response = self.session.get(
+                    f"{self.BASE_URL}/user/prelogin.aspx?loginret=http://welearn.sflep.com/user/loginredirect.aspx",
+                    timeout=30,
+                )
 
-            if response.status_code != 200:
-                return False, f"网络请求失败，状态码: {response.status_code}"
+                if response.status_code != 200:
+                    if attempt < 2:
+                        time_module.sleep(2)
+                        continue
+                    return False, f"网络请求失败，状态码: {response.status_code}"
 
-            url_parts = response.url.split("%26")
-            if len(url_parts) < 7:
-                return False, "登录URL格式异常"
+                url_parts = response.url.split("%26")
+                if len(url_parts) < 7:
+                    if attempt < 2:
+                        time_module.sleep(2)
+                        continue
+                    return False, "登录URL格式异常（可能是网络问题或服务器维护）"
 
-            code_challenge = (url_parts[4].split("%3D")[1] if len(url_parts[4].split("%3D")) > 1 else "")
-            state = (url_parts[6].split("%3D")[1] if len(url_parts[6].split("%3D")) > 1 else "")
+                code_challenge = (url_parts[4].split("%3D")[1] if len(url_parts[4].split("%3D")) > 1 else "")
+                state = (url_parts[6].split("%3D")[1] if len(url_parts[6].split("%3D")) > 1 else "")
 
-            rturl = (
-                f"/connect/authorize/callback?client_id=welearn_web&redirect_uri=https%3A%2F%2Fwelearn.sflep.com%2Fsignin-sflep"
-                f"&response_type=code&scope=openid%20profile%20email%20phone%20address&code_challenge={code_challenge}"
-                f"&code_challenge_method=S256&state={state}&x-client-SKU=ID_NET472&x-client-ver=6.32.1.0"
-            )
+                rturl = (
+                    f"/connect/authorize/callback?client_id=welearn_web&redirect_uri=https%3A%2F%2Fwelearn.sflep.com%2Fsignin-sflep"
+                    f"&response_type=code&scope=openid%20profile%20email%20phone%20address&code_challenge={code_challenge}"
+                    f"&code_challenge_method=S256&state={state}&x-client-SKU=ID_NET472&x-client-ver=6.32.1.0"
+                )
 
-            enpwd = generate_cipher_text(password)
+                enpwd = generate_cipher_text(password)
 
-            form_data = {
-                "rturl": rturl,
-                "account": username,
-                "pwd": enpwd[0],
-                "ts": enpwd[1],
-            }
+                form_data = {
+                    "rturl": rturl,
+                    "account": username,
+                    "pwd": enpwd[0],
+                    "ts": enpwd[1],
+                }
 
-            response = self.session.post(
-                "https://sso.sflep.com/idsvr/account/login", data=form_data, timeout=10
-            )
+                response = self.session.post(
+                    "https://sso.sflep.com/idsvr/account/login", data=form_data, timeout=30
+                )
 
-            if response.status_code != 200:
-                return False, f"登录请求失败，状态码: {response.status_code}"
+                if response.status_code != 200:
+                    if attempt < 2:
+                        time_module.sleep(2)
+                        continue
+                    return False, f"登录请求失败，状态码: {response.status_code}"
 
-            result = response.json()
-            code = result.get("code", -1)
+                result = response.json()
+                code = result.get("code", -1)
 
-            if code == 1:
-                return False, "帐号或密码错误"
+                if code == 1:
+                    return False, "帐号或密码错误"
 
-            self.session.get(
-                f"{self.BASE_URL}/user/prelogin.aspx?loginret=http://welearn.sflep.com/user/loginredirect.aspx",
-                timeout=10,
-            )
+                self.session.get(
+                    f"{self.BASE_URL}/user/prelogin.aspx?loginret=http://welearn.sflep.com/user/loginredirect.aspx",
+                    timeout=30,
+                )
 
-            if code == 0:
-                return True, "登录成功"
-            else:
-                return False, "登录失败"
+                if code == 0:
+                    return True, "登录成功"
+                else:
+                    return False, "登录失败"
 
-        except Exception as e:
-            return False, f"登录过程中发生错误: {str(e)}"
+            except Exception as e:
+                if attempt < 2:
+                    time_module.sleep(2)
+                    continue
+                return False, f"登录过程中发生错误: {str(e)}"
 
     def get_courses(self) -> Tuple[bool, List, str]:
         try:
@@ -77,7 +92,7 @@ class WeLearnClient:
             response = self.session.get(
                 url,
                 headers={"Referer": f"{self.BASE_URL}/2019/student/index.aspx"},
-                timeout=10,
+                timeout=30,
             )
 
             if response.status_code != 200:
@@ -94,7 +109,7 @@ class WeLearnClient:
     def get_course_info(self, cid) -> Tuple[bool, Optional[Dict], str]:
         try:
             url = f"{self.BASE_URL}/student/course_info.aspx?cid={cid}"
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=30)
 
             if response.status_code != 200:
                 return False, None, f"获取课程信息失败，状态码: {response.status_code}"
@@ -113,7 +128,7 @@ class WeLearnClient:
                 url,
                 params={"action": "courseunits", "cid": cid, "uid": uid},
                 headers={"Referer": f"{self.BASE_URL}/2019/student/course_info.aspx"},
-                timeout=10,
+                timeout=30,
             )
 
             if response.status_code != 200:

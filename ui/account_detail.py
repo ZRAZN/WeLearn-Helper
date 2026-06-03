@@ -477,13 +477,17 @@ class AccountDetailDialog(QDialog):
             QTimer.singleShot(500, self.check_incomplete_task)
         else:
             self.login_btn.setText("🔐 登录")
-            self.log(f"❌ 登录失败: {message}")
+            # 针对网络问题给出更友好的提示
+            if "timed out" in message or "timeout" in message.lower():
+                self.log(f"❌ 登录失败: 网络超时，请检查网络连接后重试")
+            elif "Connection" in message or "连接" in message:
+                self.log(f"❌ 登录失败: 无法连接服务器，请检查网络")
+            elif "URL格式异常" in message:
+                self.log(f"❌ 登录失败: 服务器响应异常，请稍后重试")
+            else:
+                self.log(f"❌ 登录失败: {message}")
             logger.error(f"登录失败 - 账号: {self.account.username}, 错误: {message}")
             self.update_status("登录失败", message)
-            msg_box = QMessageBox(QMessageBox.Warning, "登录失败", message)
-            # 移除问号帮助按钮
-            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-            msg_box.exec_()
     
     def refresh_courses(self):
         """刷新课程列表"""
