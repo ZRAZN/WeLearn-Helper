@@ -168,20 +168,10 @@ class WeLearnUI(QMainWindow):
     
     def open_network_fix(self):
         """打开网络修复工具箱"""
-        try:
-            from ui.network_fix_dialog import NetworkFixDialog
-        except ImportError:
-            import importlib
-            spec = importlib.util.spec_from_file_location(
-                "network_fix_dialog", 
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), "network_fix_dialog.py")
-            )
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            NetworkFixDialog = module.NetworkFixDialog
-        
-        dialog = NetworkFixDialog(self)
-        dialog.exec_()
+        from ui.network_fix_dialog import NetworkFixDialog
+        dialog = NetworkFixDialog()
+        dialog.setWindowTitle("网络诊断与修复工具箱")
+        dialog.show()
     
     def open_account_detail(self, account: Account):
         """打开账号详情对话框"""

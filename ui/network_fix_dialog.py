@@ -62,7 +62,7 @@ class NetworkFixDialog(QDialog):
     """网络修复工具箱对话框"""
     
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(None)  # 不设置parent，成为独立窗口
         self.setWindowTitle("网络诊断与修复工具箱")
         self.setMinimumSize(600, 500)
         self.resize(600, 500)

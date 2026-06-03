@@ -671,17 +671,23 @@ class AccountDetailDialog(QDialog):
         mode = self.mode_combo.currentText()
         logger.info(f"任务模式: {mode}")
         
+        # 检查是否是自动开始模式
+        auto_start = getattr(self, '_auto_start_mode', False)
+        if auto_start:
+            self._auto_start_mode = False  # 重置标志
+        
         # 添加任务开始前的提醒
         if mode == "刷作业":
-            msg_box = QMessageBox(QMessageBox.Information, "任务提醒", 
-                                 f"即将开始刷作业任务\n\n课程: {self.current_course['name']}\n选中单元数: {len(units_to_process)} 个\n\n确认要开始吗？")
-            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            msg_box.setDefaultButton(QMessageBox.Yes)
-            # 移除问号帮助按钮
-            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-            if msg_box.exec_() != QMessageBox.Yes:
-                logger.info("用户取消了刷作业任务")
-                return
+            if not auto_start:
+                msg_box = QMessageBox(QMessageBox.Information, "任务提醒", 
+                                     f"即将开始刷作业任务\n\n课程: {self.current_course['name']}\n选中单元数: {len(units_to_process)} 个\n\n确认要开始吗？")
+                msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                msg_box.setDefaultButton(QMessageBox.Yes)
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                if msg_box.exec_() != QMessageBox.Yes:
+                    logger.info("用户取消了刷作业任务")
+                    return
         else:
             # 获取时间值和单位
             time_value = self.time_spin.value()
@@ -709,15 +715,17 @@ class AccountDetailDialog(QDialog):
             else:
                 time_estimate = f"{minutes} 分钟 {seconds} 秒"
             
-            msg_box = QMessageBox(QMessageBox.Information, "任务提醒", 
-                                 f"即将开始刷时长任务\n\n课程: {self.current_course['name']}\n选中单元数: {len(units_to_process)} 个\n每单元时长: {time_text}\n预计完成时间: {time_estimate}\n\n确认要开始吗？")
-            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            msg_box.setDefaultButton(QMessageBox.Yes)
-            # 移除问号帮助按钮
-            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-            if msg_box.exec_() != QMessageBox.Yes:
-                logger.info("用户取消了刷时长任务")
-                return
+            # 自动开始时不弹确认窗
+            if not auto_start:
+                msg_box = QMessageBox(QMessageBox.Information, "任务提醒", 
+                                     f"即将开始刷时长任务\n\n课程: {self.current_course['name']}\n选中单元数: {len(units_to_process)} 个\n每单元时长: {time_text}\n预计完成时间: {time_estimate}\n\n确认要开始吗？")
+                msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                msg_box.setDefaultButton(QMessageBox.Yes)
+                # 移除问号帮助按钮
+                msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                if msg_box.exec_() != QMessageBox.Yes:
+                    logger.info("用户取消了刷时长任务")
+                    return
         
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
@@ -1071,10 +1079,27 @@ class AccountDetailDialog(QDialog):
         self.concurrent_spin.setValue(20)
         self.time_random_spin.setValue(5)
         
-        self.log("已切换到刷时长模式，3秒后自动开始...")
+        # 标记为自动开始，跳过确认弹窗
+        self._auto_start_mode = True
         
-        # 延迟3秒后自动开始
-        QTimer.singleShot(3000, self.start_study)
+        # 5秒倒计时
+        self._countdown_seconds = 5
+        self.countdown_label.setText(f"⏱ {self._countdown_seconds}秒后自动开始刷时长...")
+        self.countdown_label.setVisible(True)
+        
+        self._auto_start_timer = QTimer()
+        self._auto_start_timer.timeout.connect(self._auto_start_tick)
+        self._auto_start_timer.start(1000)
+    
+    def _auto_start_tick(self):
+        """自动开始倒计时"""
+        self._countdown_seconds -= 1
+        if self._countdown_seconds <= 0:
+            self._auto_start_timer.stop()
+            self.countdown_label.setVisible(False)
+            self.start_study()
+        else:
+            self.countdown_label.setText(f"⏱ {self._countdown_seconds}秒后自动开始刷时长...")
         
         # 清理线程引用
         self.study_thread = None
