@@ -123,36 +123,14 @@ class NetworkDiagnostics:
             if dns_match:
                 self.add_result("DNS服务", "ok", f"DNS服务器: {', '.join(dns_match)}")
             else:
-                self.add_result("DNS服务", "warning", "未配置DNS服务器")
+                # 检查是否有互联网连接，如果有则可能是VPN接管DNS
+                inet_ok, inet_output = run_cmd("ping -n 1 -w 3000 baidu.com")
+                if inet_ok and "TTL=" in inet_output:
+                    self.add_result("DNS服务", "ok", "未检测到DNS服务器（可能由VPN/代理接管）")
+                else:
+                    self.add_result("DNS服务", "warning", "未配置DNS服务器")
         else:
             self.add_result("DNS服务", "error", f"无法检测: {output}")
-    
-    def check_hosts_file(self):
-        """检查HOSTS文件"""
-        logger.info("检查HOSTS文件...")
-        hosts_path = r"C:\Windows\System32\drivers\etc\hosts"
-        try:
-            with open(hosts_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-            
-            custom_lines = [line for line in content.split('\n') 
-                          if line.strip() and not line.startswith('#')]
-            
-            if len(custom_lines) > 0:
-                self.add_result("HOSTS文件", "warning", f"HOSTS文件有 {len(custom_lines)} 条自定义记录")
-            else:
-                self.add_result("HOSTS文件", "ok", "HOSTS文件正常")
-        except Exception as e:
-            self.add_result("HOSTS文件", "error", f"无法读取HOSTS文件: {str(e)}")
-    
-    def check_lsp(self):
-        """检查LSP协议"""
-        logger.info("检查LSP协议...")
-        ok, output = run_cmd("netsh winsock show catalog")
-        if ok and output.strip():
-            self.add_result("LSP协议", "ok", "Winsock目录正常")
-        else:
-            self.add_result("LSP协议", "warning", "Winsock目录可能有问题")
     
     def check_proxy(self):
         """检查IE代理配置"""
@@ -164,7 +142,12 @@ class NetworkDiagnostics:
             winreg.CloseKey(key)
             
             if proxy_enable:
-                self.add_result("代理配置", "warning", "系统代理已启用，可能影响连接")
+                # 检查是否有互联网连接，如果有则代理是正常使用的
+                inet_ok, inet_output = run_cmd("ping -n 1 -w 3000 baidu.com")
+                if inet_ok and "TTL=" in inet_output:
+                    self.add_result("代理配置", "ok", "系统代理已启用（网络正常，可能是VPN/梯子使用中）")
+                else:
+                    self.add_result("代理配置", "warning", "系统代理已启用，可能影响连接")
             else:
                 self.add_result("代理配置", "ok", "系统代理未启用")
         except:
