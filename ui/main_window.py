@@ -168,7 +168,18 @@ class WeLearnUI(QMainWindow):
     
     def open_network_fix(self):
         """打开网络修复工具箱"""
-        from ui.network_fix_dialog import NetworkFixDialog
+        try:
+            from ui.network_fix_dialog import NetworkFixDialog
+        except ImportError:
+            import importlib
+            spec = importlib.util.spec_from_file_location(
+                "network_fix_dialog", 
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "network_fix_dialog.py")
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            NetworkFixDialog = module.NetworkFixDialog
+        
         dialog = NetworkFixDialog(self)
         dialog.exec_()
     
@@ -533,6 +544,10 @@ class WeLearnUI(QMainWindow):
         
         # 最新更新公告
         announcement_content += "V5.0.12\n"
+        announcement_content += "-添加网络诊断与修复工具箱\n"
+        announcement_content += "-文件夹模式打包，启动速度更快\n"
+        announcement_content += "-默认管理员权限启动\n"
+        announcement_content += "-增加网络超时时间和自动重试\n"
         announcement_content += "-添加重复账号检测，支持覆盖更新\n"
         announcement_content += "-添加倒计时功能\n"
         announcement_content += "-关闭窗口时保存任务进度\n"
