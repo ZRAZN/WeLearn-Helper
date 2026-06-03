@@ -161,6 +161,22 @@ class WeLearnUI(QMainWindow):
         """)
         self.network_fix_btn.clicked.connect(self.open_network_fix)
         self.status_bar.addPermanentWidget(self.network_fix_btn)
+        
+        # 打赏按钮
+        self.donate_btn = QPushButton("❤️ 打赏")
+        self.donate_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #E91E63;
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                font-size: 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover { background-color: #C2185B; }
+        """)
+        self.donate_btn.clicked.connect(self.show_donate)
+        self.status_bar.addPermanentWidget(self.donate_btn)
     
     def create_menu_bar(self):
         """创建菜单栏"""
@@ -172,6 +188,61 @@ class WeLearnUI(QMainWindow):
         dialog = NetworkFixDialog()
         dialog.setWindowTitle("网络诊断与修复工具箱")
         dialog.show()
+    
+    def show_donate(self):
+        """显示赞赏码"""
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+        from PyQt5.QtGui import QPixmap
+        from PyQt5.QtCore import Qt
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("感谢支持")
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(15)
+        
+        # 感谢语
+        thank_label = QLabel("感谢您的支持与认可！")
+        thank_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #333;")
+        thank_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(thank_label)
+        
+        # 赞赏码图片
+        reward_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'reward.png')
+        if os.path.exists(reward_path):
+            reward_label = QLabel()
+            pixmap = QPixmap(reward_path)
+            if not pixmap.isNull():
+                # 缩放图片到合适大小
+                pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                reward_label.setPixmap(pixmap)
+                reward_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(reward_label)
+        
+        # 提示信息
+        tip_label = QLabel("扫码赞赏，金额随心")
+        tip_label.setStyleSheet("color: #666; font-size: 13px;")
+        tip_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(tip_label)
+        
+        # 关闭按钮
+        close_btn = QPushButton("关闭")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 24px;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
+        close_btn.clicked.connect(dialog.close)
+        layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        dialog.exec_()
     
     def open_account_detail(self, account: Account):
         """打开账号详情对话框"""
