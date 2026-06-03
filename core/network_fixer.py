@@ -153,6 +153,31 @@ class NetworkDiagnostics:
         except:
             self.add_result("代理配置", "ok", "未检测到代理配置")
     
+    def check_hosts_file(self):
+        """检查HOSTS文件"""
+        logger.info("检查HOSTS文件...")
+        hosts_path = r"C:\Windows\System32\drivers\etc\hosts"
+        try:
+            with open(hosts_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            custom_lines = [line for line in content.split('\n') 
+                          if line.strip() and not line.startswith('#')]
+            if len(custom_lines) > 0:
+                self.add_result("HOSTS文件", "warning", f"HOSTS文件有 {len(custom_lines)} 条自定义记录")
+            else:
+                self.add_result("HOSTS文件", "ok", "HOSTS文件正常")
+        except Exception as e:
+            self.add_result("HOSTS文件", "error", f"无法读取HOSTS文件: {str(e)}")
+    
+    def check_lsp(self):
+        """检查LSP协议"""
+        logger.info("检查LSP协议...")
+        ok, output = run_cmd("netsh winsock show catalog")
+        if ok and output.strip():
+            self.add_result("LSP协议", "ok", "Winsock目录正常")
+        else:
+            self.add_result("LSP协议", "warning", "Winsock目录可能有问题")
+    
     def check_internet(self):
         """检查互联网连接"""
         logger.info("检查互联网连接...")
