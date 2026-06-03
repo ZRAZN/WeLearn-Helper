@@ -4,7 +4,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('ZR.ico', '.'), ('ZR.png', '.'), ('accounts.json', '.')],
+    datas=[('ZR.ico', '.'), ('ZR.png', '.'), ('accounts.json', '.'), ('ui\\network_fix_dialog.py', 'ui'), ('ui\\__init__.py', 'ui'), ('core\\network_fixer.py', 'core'), ('core\\__init__.py', 'core')],
     hiddenimports=['ui.network_fix_dialog', 'core.network_fixer'],
     hookspath=[],
     hooksconfig={},
