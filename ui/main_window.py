@@ -194,6 +194,8 @@ class WeLearnUI(QMainWindow):
         from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
         from PyQt5.QtGui import QPixmap
         from PyQt5.QtCore import Qt
+        import base64
+        from io import BytesIO
         
         dialog = QDialog(self)
         dialog.setWindowTitle("感谢支持")
@@ -208,17 +210,22 @@ class WeLearnUI(QMainWindow):
         thank_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thank_label)
         
-        # 赞赏码图片
-        reward_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'reward.png')
-        if os.path.exists(reward_path):
-            reward_label = QLabel()
-            pixmap = QPixmap(reward_path)
+        # 赞赏码图片（内置）
+        try:
+            from core.reward_data import REWARD_IMAGE
+            img_data = base64.b64decode(REWARD_IMAGE)
+            pixmap = QPixmap()
+            pixmap.loadFromData(img_data)
             if not pixmap.isNull():
-                # 缩放图片到合适大小
                 pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                reward_label = QLabel()
                 reward_label.setPixmap(pixmap)
                 reward_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 layout.addWidget(reward_label)
+        except Exception:
+            reward_label = QLabel("赞赏码加载失败")
+            reward_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(reward_label)
         
         # 提示信息
         tip_label = QLabel("扫码赞赏，金额随心")
