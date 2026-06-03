@@ -1001,6 +1001,27 @@ class AccountDetailDialog(QDialog):
                 msg += f"\n重试次数: {retry_count}"
             self.log(f"✅ 刷作业完成！\n{msg}")
             logger.info(f"刷作业任务完成 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 结果: {msg}")
+            
+            # 刷作业完成后自动开始刷时长（5秒倒计时）
+            reply_box = QMessageBox(QMessageBox.Information, "刷作业完成",
+                f"刷作业已完成！\n{msg}\n\n5秒后自动开始刷时长...")
+            reply_box.setWindowFlags(reply_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+            ok_btn = reply_box.addButton("立即开始", QMessageBox.AcceptRole)
+            cancel_btn = reply_box.addButton("取消", QMessageBox.RejectRole)
+            reply_box.setDefaultButton(ok_btn)
+            reply_box.show()
+            
+            # 5秒后自动开始
+            from PyQt5.QtCore import QTimer
+            timer = QTimer()
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda: (reply_box.accept(), self.auto_start_time_study()))
+            timer.start(5000)
+            
+            reply_box.exec_()
+            # 如果用户点了取消，停止定时器
+            if reply_box.clickedButton() == cancel_btn:
+                timer.stop()
         else:
             completed_units = result.get('completed_units', 0)
             total_units = len(self.current_units) if self.current_units else 0
@@ -1032,6 +1053,28 @@ class AccountDetailDialog(QDialog):
         # 移除问号帮助按钮
         msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         msg_box.exec_()
+    
+    def auto_start_time_study(self):
+        """刷作业完成后自动开始刷时长"""
+        from core.logger import get_logger
+        from PyQt5.QtCore import QTimer
+        logger = get_logger("AccountDetail")
+        
+        logger.info("刷作业完成，自动切换到刷时长模式")
+        
+        # 切换到刷时长模式
+        self.mode_combo.setCurrentText("刷时长")
+        
+        # 设置默认参数
+        self.time_spin.setValue(3)  # 默认3小时
+        self.time_unit_combo.setCurrentText("小时")
+        self.concurrent_spin.setValue(20)
+        self.time_random_spin.setValue(5)
+        
+        self.log("已切换到刷时长模式，3秒后自动开始...")
+        
+        # 延迟3秒后自动开始
+        QTimer.singleShot(3000, self.start_study)
         
         # 清理线程引用
         self.study_thread = None
