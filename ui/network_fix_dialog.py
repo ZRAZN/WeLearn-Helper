@@ -121,7 +121,7 @@ class NetworkFixDialog(QDialog):
         layout.addWidget(result_group)
         
         # 状态栏
-        self.status_label = QLabel("点击"一键诊断"开始检测网络状态")
+        self.status_label = QLabel('点击"一键诊断"开始检测网络状态')
         self.status_label.setStyleSheet("color: #666; font-size: 12px;")
         layout.addWidget(self.status_label)
     
