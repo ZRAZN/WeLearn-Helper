@@ -98,21 +98,19 @@ class AccountDetailDialog(QDialog):
                         self.task_progress.clear_task_progress(task.get('task_id', ''))
                     break
     
-    def continue_task(self, task):
-        """继续未完成的任务"""
+    def _execute_continue_task(self, task):
+        """执行继续任务"""
         from core.logger import get_logger
+        from PyQt5.QtCore import QTimer
         logger = get_logger("AccountDetail")
         
         task_type = task.get('task_type', '')
         task_config = task.get('task_config', {})
         unit_indices = task.get('unit_indices', [])
-        current_units = task.get('current_units', [])
         
-        logger.info(f"继续任务: {task_type}, 单元: {unit_indices}")
-        self.log(f"继续未完成的{task_type}任务...")
+        logger.info(f"执行继续任务: {task_type}, 单元: {unit_indices}")
         
         if task_type == "刷时长":
-            # 设置刷时长参数
             self.mode_combo.setCurrentText("刷时长")
             total_minutes = task_config.get('total_minutes', 60)
             concurrent = task_config.get('concurrent', 20)
@@ -123,27 +121,6 @@ class AccountDetailDialog(QDialog):
             else:
                 self.time_unit_combo.setCurrentText("分钟")
             self.concurrent_spin.setValue(concurrent)
-            
-            self.current_units = current_units
-            self.uid = task.get('uid', '')
-            self.classid = task.get('classid', '')
-            
-            # 选中单元
-            self.unit_list.clear()
-            for i, unit in enumerate(current_units):
-                unit_name = unit.get('name', f'单元 {i+1}')
-                item = QListWidgetItem(f"单元 {i+1}: {unit_name}")
-                item.setCheckState(Qt.CheckState.Checked if i in unit_indices else Qt.CheckState.Unchecked)
-                item.setData(Qt.ItemDataRole.UserRole, i)
-                self.unit_list.addItem(item)
-            
-            self.start_btn.setEnabled(True)
-            
-            # 清除旧任务记录
-            self.task_progress.clear_task_progress(task.get('task_id', ''))
-            
-            # 自动开始
-            QTimer.singleShot(500, self.start_study)
         
         elif task_type == "刷作业":
             self.mode_combo.setCurrentText("刷作业")
@@ -152,27 +129,51 @@ class AccountDetailDialog(QDialog):
             
             self.accuracy_spin.setValue(accuracy)
             self.homework_concurrent_spin.setValue(concurrent)
-            
-            self.current_units = current_units
-            self.uid = task.get('uid', '')
-            self.classid = task.get('classid', '')
-            
-            # 选中单元
-            self.unit_list.clear()
-            for i, unit in enumerate(current_units):
-                unit_name = unit.get('name', f'单元 {i+1}')
-                item = QListWidgetItem(f"单元 {i+1}: {unit_name}")
-                item.setCheckState(Qt.CheckState.Checked if i in unit_indices else Qt.CheckState.Unchecked)
-                item.setData(Qt.ItemDataRole.UserRole, i)
-                self.unit_list.addItem(item)
-            
-            self.start_btn.setEnabled(True)
-            
-            # 清除旧任务记录
-            self.task_progress.clear_task_progress(task.get('task_id', ''))
-            
-            # 自动开始
-            QTimer.singleShot(500, self.start_study)
+        
+        # 只选中之前未完成的单元
+        for i in range(self.unit_list.count()):
+            item = self.unit_list.item(i)
+            if i in unit_indices:
+                item.setCheckState(Qt.CheckState.Checked)
+            else:
+                item.setCheckState(Qt.CheckState.Unchecked)
+        
+        # 清除旧任务记录
+        self.task_progress.clear_task_progress(task.get('task_id', ''))
+        
+        self.log(f"已恢复{task_type}任务参数，自动开始执行...")
+        QTimer.singleShot(500, self.start_study)
+    
+    def continue_task(self, task):
+        """继续未完成的任务 - 先选择课程，加载单元后再执行"""
+        from core.logger import get_logger
+        logger = get_logger("AccountDetail")
+        
+        task_type = task.get('task_type', '')
+        task_config = task.get('task_config', {})
+        cid = task_config.get('cid', '')
+        unit_indices = task.get('unit_indices', [])
+        
+        logger.info(f"继续任务: {task_type}, 课程CID: {cid}, 单元: {unit_indices}")
+        self.log(f"准备继续未完成的{task_type}任务...")
+        
+        # 保存任务信息，等课程和单元加载后再执行
+        self._pending_continue_task = task
+        
+        # 选择对应的课程
+        if cid:
+            found = False
+            for i in range(self.courses_list.count()):
+                item = self.courses_list.item(i)
+                course_data = item.data(Qt.ItemDataRole.UserRole)
+                if course_data and course_data.get('cid') == cid:
+                    self.courses_list.setCurrentItem(item)
+                    self.on_course_selected(item)
+                    found = True
+                    break
+            if not found:
+                self.log("❌ 未找到对应的课程，无法继续任务")
+                self._pending_continue_task = None
     
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -583,6 +584,11 @@ class AccountDetailDialog(QDialog):
             self.start_btn.setEnabled(True)
             self.log(f"✅ 获取到 {len(self.current_units)} 个单元")
             logger.info(f"单元列表获取成功 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 单元数量: {len(self.current_units)}, 单元: {', '.join(unit_names)}")
+            
+            # 检查是否有待继续的任务
+            if hasattr(self, '_pending_continue_task') and self._pending_continue_task:
+                self._execute_continue_task(self._pending_continue_task)
+                self._pending_continue_task = None
         else:
             self.log(f"❌ 获取单元失败: {message}")
             logger.error(f"单元列表获取失败 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 错误: {message}")
@@ -811,12 +817,14 @@ class AccountDetailDialog(QDialog):
         task_config = {}
         if mode == "刷作业":
             task_config = {
+                "cid": self.current_course['cid'],
                 "accuracy": accuracy_config,
                 "concurrent": homework_concurrent,
                 "course_name": self.current_course['name']
             }
         else:
             task_config = {
+                "cid": self.current_course['cid'],
                 "total_minutes": total_minutes,
                 "random_range": random_range,
                 "concurrent": concurrent,
