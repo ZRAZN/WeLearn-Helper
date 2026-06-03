@@ -144,10 +144,33 @@ class WeLearnUI(QMainWindow):
         disclaimer_label = QLabel("本软件仅供学术交流，禁止用于商业途径")
         disclaimer_label.setStyleSheet("color: red; font-size: 14px; font-weight: bold; padding: 2px;")
         self.status_bar.addPermanentWidget(disclaimer_label)
+        
+        # 网络工具箱按钮
+        from PyQt5.QtWidgets import QPushButton
+        self.network_fix_btn = QPushButton("🔧 网络工具箱")
+        self.network_fix_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                font-size: 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover { background-color: #1976D2; }
+        """)
+        self.network_fix_btn.clicked.connect(self.open_network_fix)
+        self.status_bar.addPermanentWidget(self.network_fix_btn)
     
     def create_menu_bar(self):
         """创建菜单栏"""
         pass
+    
+    def open_network_fix(self):
+        """打开网络修复工具箱"""
+        from ui.network_fix_dialog import NetworkFixDialog
+        dialog = NetworkFixDialog(self)
+        dialog.exec_()
     
     def open_account_detail(self, account: Account):
         """打开账号详情对话框"""
