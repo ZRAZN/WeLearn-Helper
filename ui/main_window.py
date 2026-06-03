@@ -31,7 +31,7 @@ class WeLearnUI(QMainWindow):
         self.detail_dialogs = {}  # 存储打开的详情对话框
         self.tray_icon = None     # 系统托盘图标
         self.tray_reminder_timer = None  # 托盘提醒定时器
-        self.version = "V5.0.11"     # 软件版本号
+        self.version = "V5.0.12"     # 软件版本号
         self.init_ui()
         self.init_tray()  # 初始化系统托盘
         
@@ -54,7 +54,7 @@ class WeLearnUI(QMainWindow):
         QTimer.singleShot(100, self.center_window)
     
     def init_ui(self):
-        self.setWindowTitle("ZR | WeLearn学习助手 V5.0.11    致力于把大学生的时间还给大学生")
+        self.setWindowTitle("ZR | WeLearn学习助手 V5.0.12    致力于把大学生的时间还给大学生")
         self.setGeometry(100, 100, 900, 600)
         self.setMinimumSize(800, 500)
         
@@ -382,7 +382,7 @@ class WeLearnUI(QMainWindow):
         
         warning_text = """版权声明：
 
-本软件为WeLearn学习助手V5.0.11版本，由ZR修改并打包。
+本软件为WeLearn学习助手V5.0.12版本，由ZR修改并打包。
 
 使用条款：
 1. 本软件仅供学习交流使用，严禁用于任何商业用途
@@ -437,7 +437,7 @@ class WeLearnUI(QMainWindow):
         dont_show = settings.value("General/dont_show_update_announcement", False, type=bool)
         announcement_shown = settings.value("General/announcement_shown", False, type=bool)
         last_version = settings.value("General/last_version", "", type=str)
-        current_version = "V5.0.11"  # 更新当前版本号
+        current_version = "V5.0.12"  # 更新当前版本号
         
         print(f"更新公告设置: 不再提醒={dont_show}")
         print(f"公告已显示={announcement_shown}")
@@ -509,6 +509,14 @@ class WeLearnUI(QMainWindow):
 
         
         # 最新更新公告
+        announcement_content += "V5.0.12\n"
+        announcement_content += "-添加重复账号检测，支持覆盖更新\n"
+        announcement_content += "-添加倒计时功能\n"
+        announcement_content += "-关闭窗口时保存任务进度\n"
+        announcement_content += "-打开详情页时自动检查并继续未完成任务\n"
+        announcement_content += "-修复声明窗口重复提示音\n"
+        announcement_content += "-重复账号自动高亮选中\n\n"
+        
         announcement_content += "V5.0.11\n"
         announcement_content += "-优化倒计时计算，添加分隔线，更新公告，修复警告页面任务栏图标\n"
         announcement_content += "-修复声明窗口和更新公告窗口在任务栏不显示的问题\n"

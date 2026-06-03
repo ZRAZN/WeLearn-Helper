@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='WeLearn学习助手V5.0.11',
+    name='WeLearn学习助手V5.0.12',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
