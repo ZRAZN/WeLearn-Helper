@@ -58,6 +58,9 @@ class WeLearnUI(QMainWindow):
         self.setGeometry(100, 100, 900, 600)
         self.setMinimumSize(800, 500)
         
+        # 加载统一样式表
+        self.load_style_sheet()
+        
         # 使用统一的路径获取方法
         app_path = self.get_background_path()
         if app_path is None:
@@ -404,6 +407,26 @@ class WeLearnUI(QMainWindow):
         # 如果所有路径都无效，返回None
         print("无法找到背景图片文件")
         return None
+    
+    def load_style_sheet(self):
+        """加载统一样式表"""
+        # 获取样式文件路径
+        if getattr(sys, 'frozen', False):
+            if hasattr(sys, '_MEIPASS'):
+                style_path = os.path.join(sys._MEIPASS, 'style.qss')
+            else:
+                style_path = os.path.join(os.path.dirname(sys.executable), 'style.qss')
+                if not os.path.exists(style_path):
+                    style_path = os.path.join(os.path.dirname(sys.executable), '_internal', 'style.qss')
+        else:
+            style_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'style.qss')
+        
+        if os.path.exists(style_path):
+            with open(style_path, 'r', encoding='utf-8') as f:
+                self.setStyleSheet(f.read())
+            print(f"已加载样式表: {style_path}")
+        else:
+            print(f"样式表文件不存在: {style_path}")
 
     def show_startup_warning(self):
         """显示启动警告"""
