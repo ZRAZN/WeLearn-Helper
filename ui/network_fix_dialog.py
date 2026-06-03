@@ -30,10 +30,31 @@ class FixThread(QThread):
     finished = pyqtSignal(list)
     progress = pyqtSignal(str)
     
+    def __init__(self, items_to_fix):
+        super().__init__()
+        self.items_to_fix = items_to_fix
+    
     def run(self):
         self.progress.emit("正在执行修复...")
         fixer = NetworkFixer()
-        results = fixer.reset_all()
+        
+        # 根据选择的项目执行对应修复
+        results = []
+        for item in self.items_to_fix:
+            self.progress.emit(f"正在修复: {item}...")
+            if item == "DNS服务":
+                results.append(("刷新DNS", *fixer.flush_dns()))
+            elif item == "代理配置":
+                results.append(("重置代理", *fixer.reset_proxy()))
+            elif item == "HOSTS文件":
+                results.append(("修复HOSTS", *fixer.fix_hosts()))
+            elif item == "LSP协议":
+                results.append(("重置Winsock", *fixer.reset_winsock()))
+            elif item == "IP配置":
+                results.append(("重置IP/TCP", *fixer.reset_tcp_ip()))
+                results.append(("刷新DNS", *fixer.flush_dns()))
+                results.append(("重置DHCP", *fixer.reset_dhcp()))
+        
         self.finished.emit(results)
 
 
@@ -49,6 +70,7 @@ class NetworkFixDialog(QDialog):
         self.set_background()
         self.init_ui()
         self.diagnosis_results = []
+        self.fix_checkboxes = {}
     
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -61,7 +83,7 @@ class NetworkFixDialog(QDialog):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
-        # 诊断按钮
+        # 操作按钮
         btn_layout = QHBoxLayout()
         self.diagnose_btn = QPushButton("🔍 一键诊断")
         self.diagnose_btn.setStyleSheet("""
@@ -78,7 +100,7 @@ class NetworkFixDialog(QDialog):
         self.diagnose_btn.clicked.connect(self.start_diagnosis)
         btn_layout.addWidget(self.diagnose_btn)
         
-        self.fix_btn = QPushButton("🔧 一键修复")
+        self.fix_btn = QPushButton("🔧 修复选中项")
         self.fix_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
@@ -118,6 +140,13 @@ class NetworkFixDialog(QDialog):
             }
         """)
         result_layout.addWidget(self.result_text)
+        
+        # 修复选项区（诊断后显示）
+        self.fix_options_group = QGroupBox("选择要修复的项目（取消勾选可忽略）")
+        self.fix_options_layout = QVBoxLayout(self.fix_options_group)
+        self.fix_options_group.setVisible(False)
+        result_layout.addWidget(self.fix_options_group)
+        
         layout.addWidget(result_group)
         
         # 状态栏
@@ -142,11 +171,8 @@ class NetworkFixDialog(QDialog):
         bg_path = os.path.join(app_path, 'ZR.png')
         if os.path.exists(bg_path):
             pixmap = QPixmap(bg_path)
-            palette = self.palette()
-            palette.setBrush(self.backgroundRole(), 
-                self.palette().brush(self.backgroundRole()) if not pixmap.isNull() else 
-                self.palette().brush(self.backgroundRole()))
             from PyQt5.QtGui import QBrush
+            palette = self.palette()
             palette.setBrush(self.backgroundRole(), QBrush(pixmap.scaled(
                 self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
             self.setPalette(palette)
@@ -156,6 +182,7 @@ class NetworkFixDialog(QDialog):
         self.diagnose_btn.setEnabled(False)
         self.fix_btn.setEnabled(False)
         self.result_text.clear()
+        self.fix_options_group.setVisible(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
         self.status_label.setText("正在诊断...")
@@ -175,33 +202,64 @@ class NetworkFixDialog(QDialog):
         html = "<style>table{width:100%} td{padding:5px} .ok{color:green} .warning{color:orange} .error{color:red}</style>"
         html += "<table>"
         
+        # 清除旧的复选框
+        while self.fix_options_layout.count():
+            item = self.fix_options_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self.fix_checkboxes.clear()
+        
         for r in results:
             status = r['status']
+            name = r['name']
             if status == 'ok':
-                icon = '✅'
+                icon = '\u2705'
                 cls = 'ok'
             elif status == 'warning':
-                icon = '⚠️'
+                icon = '\u26a0\ufe0f'
                 cls = 'warning'
                 has_errors = True
+                # 为有问题的项添加复选框
+                cb = QCheckBox(f"{name}: {r['detail']}")
+                cb.setChecked(True)
+                cb.setStyleSheet("font-size: 12px; padding: 3px;")
+                self.fix_options_layout.addWidget(cb)
+                self.fix_checkboxes[name] = cb
             else:
-                icon = '❌'
+                icon = '\u274c'
                 cls = 'error'
                 has_errors = True
+                # 为有问题的项添加复选框
+                cb = QCheckBox(f"{name}: {r['detail']}")
+                cb.setChecked(True)
+                cb.setStyleSheet("font-size: 12px; padding: 3px; color: red;")
+                self.fix_options_layout.addWidget(cb)
+                self.fix_checkboxes[name] = cb
             
-            html += f'<tr><td>{icon}</td><td><b>{r["name"]}</b></td><td class="{cls}">{r["detail"]}</td></tr>'
+            html += f'<tr><td>{icon}</td><td><b>{name}</b></td><td class="{cls}">{r["detail"]}</td></tr>'
         
         html += "</table>"
         self.result_text.setHtml(html)
         
         if has_errors:
             self.fix_btn.setEnabled(True)
-            self.status_label.setText('检测到问题，点击"一键修复"进行修复')
+            self.fix_options_group.setVisible(True)
+            self.status_label.setText(f"检测到 {len(self.fix_checkboxes)} 个问题，取消勾选可忽略")
         else:
             self.status_label.setText("网络状态正常，无需修复")
     
     def start_fix(self):
-        """开始修复"""
+        """开始修复选中的项目"""
+        # 获取选中的项目
+        items_to_fix = []
+        for name, cb in self.fix_checkboxes.items():
+            if cb.isChecked():
+                items_to_fix.append(name)
+        
+        if not items_to_fix:
+            QMessageBox.information(self, "提示", "没有选择需要修复的项目")
+            return
+        
         # 检查管理员权限
         if not is_admin():
             msg = QMessageBox(self)
@@ -212,16 +270,10 @@ class NetworkFixDialog(QDialog):
             msg.exec_()
             return
         
+        fix_list = "\n".join([f"  • {item}" for item in items_to_fix])
         reply = QMessageBox.question(
             self, "确认修复",
-            "即将执行以下修复操作：\n"
-            "• 重置 Winsock\n"
-            "• 重置 IP/TCP 协议栈\n"
-            "• 刷新 DNS 缓存\n"
-            "• 重新获取 DHCP 地址\n"
-            "• 重置代理配置\n"
-            "• 修复 HOSTS 文件\n\n"
-            "部分修复需要重启电脑生效，是否继续？",
+            f"即将修复以下项目：\n{fix_list}\n\n部分修复需要重启电脑生效，是否继续？",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -235,7 +287,7 @@ class NetworkFixDialog(QDialog):
         self.progress_bar.setRange(0, 0)
         self.status_label.setText("正在修复...")
         
-        self.fix_thread = FixThread()
+        self.fix_thread = FixThread(items_to_fix)
         self.fix_thread.finished.connect(self.on_fix_finished)
         self.fix_thread.start()
     
@@ -243,12 +295,17 @@ class NetworkFixDialog(QDialog):
         """修复完成"""
         self.progress_bar.setVisible(False)
         self.diagnose_btn.setEnabled(True)
+        self.fix_btn.setEnabled(True)
+        
+        if not results:
+            self.status_label.setText("没有执行任何修复操作")
+            return
         
         html = "<style>table{width:100%} td{padding:5px} .ok{color:green} .error{color:red}</style>"
         html += "<p><b>修复结果：</b></p><table>"
         
         for name, success, msg in results:
-            icon = '✅' if success else '❌'
+            icon = '\u2705' if success else '\u274c'
             cls = 'ok' if success else 'error'
             html += f'<tr><td>{icon}</td><td><b>{name}</b></td><td class="{cls}">{msg}</td></tr>'
         
