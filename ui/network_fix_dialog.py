@@ -196,7 +196,7 @@ class NetworkFixDialog(QDialog):
         
         if has_errors:
             self.fix_btn.setEnabled(True)
-            self.status_label.setText("检测到问题，点击"一键修复"进行修复")
+            self.status_label.setText('检测到问题，点击"一键修复"进行修复')
         else:
             self.status_label.setText("网络状态正常，无需修复")
     
