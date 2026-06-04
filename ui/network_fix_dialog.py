@@ -65,8 +65,8 @@ class NetworkFixDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(None)  # 不设置parent，成为独立窗口
         self.setWindowTitle("网络诊断与修复工具箱")
-        self.setMinimumSize(600, 500)
-        self.resize(600, 500)
+        self.setMinimumSize(450, 600)
+        self.resize(450, 600)  # 3:4 比例
         # 完全无边框
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self._drag_pos = None
@@ -78,19 +78,21 @@ class NetworkFixDialog(QDialog):
     def setup_video_background(self):
         """设置视频背景"""
         from ui.video_background import setup_video_background
-        result = setup_video_background(self, 'UI B2.mp4', 600, 500)
+        result = setup_video_background(self, 'UI B2.mp4', 450, 600)
         if result:
             self.graphics_view, self.content_container, self.video_player = result
             # 设置为主布局
             main_layout = QVBoxLayout(self)
             main_layout.setContentsMargins(0, 0, 0, 0)
             main_layout.setSpacing(0)
+            main_layout.addWidget(self.graphics_view)
             
-            # 顶部栏
-            top_bar = QWidget()
-            top_bar.setFixedHeight(40)
-            top_bar.setStyleSheet("background: transparent;")
-            top_layout = QHBoxLayout(top_bar)
+            # 顶部栏（覆盖在graphics_view上面）
+            self.top_bar = QWidget(self)
+            self.top_bar.setFixedHeight(40)
+            self.top_bar.setGeometry(0, 0, 450, 40)
+            self.top_bar.setStyleSheet("background: transparent;")
+            top_layout = QHBoxLayout(self.top_bar)
             top_layout.setContentsMargins(15, 10, 15, 0)
             top_layout.setSpacing(0)
             top_layout.addStretch()
@@ -115,55 +117,32 @@ class NetworkFixDialog(QDialog):
             close_btn.clicked.connect(self.close)
             top_layout.addWidget(close_btn)
             
-            main_layout.addWidget(top_bar)
-            main_layout.addWidget(self.graphics_view)
+            self.top_bar.raise_()
+            
+            # 内容容器覆盖在视频上 - 使用ScrollArea确保内容可滚动
+            from PyQt5.QtWidgets import QScrollArea
+            self.content_widget = QScrollArea(self)
+            self.content_widget.setStyleSheet("background: transparent; border: none;")
+            self.content_widget.setGeometry(0, 40, 450, 560)
+            self.content_widget.setWidgetResizable(True)
+            self.content_widget.raise_()
+            self.content_widget.show()
     
     def init_ui(self):
-        if hasattr(self, 'content_container'):
-            main_layout = QVBoxLayout(self.content_container)
-        else:
-            main_layout = QVBoxLayout(self)
-            main_layout.setContentsMargins(0, 0, 0, 0)
-            main_layout.setSpacing(0)
-            
-            # 顶部栏
-            top_bar = QWidget()
-            top_bar.setFixedHeight(40)
-            top_bar.setStyleSheet("background: transparent;")
-            top_layout = QHBoxLayout(top_bar)
-            top_layout.setContentsMargins(15, 10, 15, 0)
-            top_layout.setSpacing(0)
-            top_layout.addStretch()
-            
-            min_btn = QPushButton()
-            min_btn.setFixedSize(12, 12)
-            min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
-            min_btn.clicked.connect(self.showMinimized)
-            top_layout.addWidget(min_btn)
-            top_layout.addSpacing(8)
-            
-            max_btn = QPushButton()
-            max_btn.setFixedSize(12, 12)
-            max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
-            max_btn.clicked.connect(self.toggle_maximize)
-            top_layout.addWidget(max_btn)
-            top_layout.addSpacing(8)
-            
-            close_btn = QPushButton()
-            close_btn.setFixedSize(12, 12)
-            close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
-            close_btn.clicked.connect(self.close)
-            top_layout.addWidget(close_btn)
-            
-            main_layout.addWidget(top_bar)
+        # 创建内容容器
+        content_container = QWidget()
+        content_container.setStyleSheet("background: transparent;")
         
-        content_layout = QVBoxLayout()
+        if hasattr(self, 'content_widget'):
+            self.content_widget.setWidget(content_container)
+        
+        content_layout = QVBoxLayout(content_container)
         content_layout.setContentsMargins(15, 10, 15, 15)
         content_layout.setSpacing(10)
         
         # 标题
         title = QLabel("网络诊断与修复工具箱")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #333;")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: white; background: transparent;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         content_layout.addWidget(title)
         
@@ -188,6 +167,22 @@ class NetworkFixDialog(QDialog):
         
         # 诊断结果区
         result_group = QGroupBox("诊断结果")
+        result_group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-weight: bold;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 15px;
+                background: transparent;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+        """)
         result_layout = QVBoxLayout(result_group)
         
         self.result_text = QTextEdit()
@@ -206,6 +201,22 @@ class NetworkFixDialog(QDialog):
         
         # 修复选项区（诊断后显示）
         self.fix_options_group = QGroupBox("选择要修复的项目（取消勾选可忽略）")
+        self.fix_options_group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-weight: bold;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 15px;
+                background: transparent;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+        """)
         self.fix_options_layout = QVBoxLayout(self.fix_options_group)
         self.fix_options_group.setVisible(False)
         result_layout.addWidget(self.fix_options_group)
@@ -214,26 +225,8 @@ class NetworkFixDialog(QDialog):
         
         # 状态栏
         self.status_label = QLabel('点击"一键诊断"开始检测网络状态')
-        self.status_label.setStyleSheet("color: #666; font-size: 12px; background: transparent;")
+        self.status_label.setStyleSheet("color: #aaa; font-size: 12px; background: transparent;")
         content_layout.addWidget(self.status_label)
-        
-        # 添加内容到主布局
-        if hasattr(self, 'content_container'):
-            # 使用视频背景时，内容添加到content_container
-            container_layout = QVBoxLayout(self.content_container)
-            container_layout.setContentsMargins(15, 10, 15, 15)
-            container_layout.setSpacing(10)
-            # 把所有内容控件添加到容器
-            for i in range(content_layout.count()):
-                item = content_layout.itemAt(i)
-                if item.widget():
-                    container_layout.addWidget(item.widget())
-                elif item.layout():
-                    container_layout.addLayout(item.layout())
-        else:
-            content_widget = QWidget()
-            content_widget.setLayout(content_layout)
-            main_layout.addWidget(content_widget)
     
     def toggle_maximize(self):
         """切换最大化/还原"""

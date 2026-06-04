@@ -5,7 +5,7 @@ import os
 import sys
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
-from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView
+from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout
 from PyQt5.QtCore import QUrl, QSizeF, Qt
 
 
@@ -49,14 +49,15 @@ def setup_video_background(widget, video_name='ui b.mp4', video_width=1520, vide
     graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     graphics_view.viewport().setStyleSheet("background: black;")
     
-    # 创建视频项
+    # 创建视频项 - 设置为窗口大小
     video_item = QGraphicsVideoItem()
-    video_item.setSize(QSizeF(video_width, video_height))
+    video_item.setSize(QSizeF(widget.width(), widget.height()))
     graphics_scene.addItem(video_item)
     
-    # 创建内容容器
+    # 创建内容容器 - 设置为窗口大小
     content_container = QWidget()
     content_container.setStyleSheet("background: transparent;")
+    content_container.setGeometry(0, 0, widget.width(), widget.height())
     content_proxy = graphics_scene.addWidget(content_container)
     content_proxy.setZValue(1)
     

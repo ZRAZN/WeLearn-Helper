@@ -24,7 +24,7 @@ class AddAccountDialog(QDialog):
         super().__init__(None)  # 不设置parent，独立窗口
         self.setWindowTitle("添加账号")
         self.setMinimumWidth(400)
-        self.resize(400, 350)
+        self.resize(450, 600)  # 3:4 比例
         # 无边框
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self._drag_pos = None
@@ -41,12 +41,14 @@ class AddAccountDialog(QDialog):
             main_layout = QVBoxLayout(self)
             main_layout.setContentsMargins(0, 0, 0, 0)
             main_layout.setSpacing(0)
+            main_layout.addWidget(self.graphics_view)
             
-            # 顶部栏
-            top_bar = QWidget()
-            top_bar.setFixedHeight(40)
-            top_bar.setStyleSheet("background: transparent;")
-            top_layout = QHBoxLayout(top_bar)
+            # 顶部栏（覆盖在graphics_view上面）
+            self.top_bar = QWidget(self)
+            self.top_bar.setFixedHeight(40)
+            self.top_bar.setGeometry(0, 0, 400, 40)
+            self.top_bar.setStyleSheet("background: transparent;")
+            top_layout = QHBoxLayout(self.top_bar)
             top_layout.setContentsMargins(15, 10, 15, 0)
             top_layout.setSpacing(0)
             top_layout.addStretch()
@@ -64,12 +66,12 @@ class AddAccountDialog(QDialog):
             close_btn.clicked.connect(self.close)
             top_layout.addWidget(close_btn)
             
-            main_layout.addWidget(top_bar)
-            main_layout.addWidget(self.graphics_view)
+            self.top_bar.raise_()
     
     def init_ui(self):
         if hasattr(self, 'content_container'):
             layout = QVBoxLayout(self.content_container)
+            self.content_container.setGeometry(0, 0, 400, 350)
         else:
             layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 50, 20, 20)
@@ -156,7 +158,9 @@ class AddAccountDialog(QDialog):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if hasattr(self, 'content_container'):
-            self.content_container.setGeometry(0, 0, self.graphics_view.width(), self.graphics_view.height())
+            self.content_container.setGeometry(0, 0, self.width(), self.height())
+        if hasattr(self, 'top_bar'):
+            self.top_bar.setGeometry(0, 0, self.width(), 40)
 
 
 class AccountView(QWidget):
