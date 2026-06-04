@@ -59,10 +59,12 @@ class AccountDetailDialog(QDialog):
         
         self.init_ui()
         self.setWindowTitle(f"账号管理 - {account.nickname or account.username}")
-        self.setMinimumSize(700, 500)
-        # 移除右上角的问号帮助按钮，并添加最小化和关闭按钮
-        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowCloseButtonHint)
-        self.set_background()
+        self.setMinimumSize(600, 800)
+        self.resize(720, 960)  # 3:4 比例
+        # 完全无边框
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
+        self._drag_pos = None
+        self.setup_video_background()
     
     def showEvent(self, event):
         """对话框显示时自动登录"""
@@ -176,7 +178,47 @@ class AccountDetailDialog(QDialog):
                 self._pending_continue_task = None
     
     def init_ui(self):
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # 顶部栏
+        top_bar = QWidget()
+        top_bar.setFixedHeight(40)
+        top_bar.setStyleSheet("background: transparent;")
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(15, 10, 15, 0)
+        top_layout.setSpacing(0)
+        top_layout.addStretch()
+        
+        # 最小化按钮（黄色）
+        min_btn = QPushButton()
+        min_btn.setFixedSize(12, 12)
+        min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
+        min_btn.clicked.connect(self.showMinimized)
+        top_layout.addWidget(min_btn)
+        top_layout.addSpacing(8)
+        
+        # 最大化按钮（绿色）
+        max_btn = QPushButton()
+        max_btn.setFixedSize(12, 12)
+        max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
+        max_btn.clicked.connect(self.toggle_maximize)
+        top_layout.addWidget(max_btn)
+        top_layout.addSpacing(8)
+        
+        # 关闭按钮（红色）
+        close_btn = QPushButton()
+        close_btn.setFixedSize(12, 12)
+        close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+        close_btn.clicked.connect(self.close)
+        top_layout.addWidget(close_btn)
+        
+        main_layout.addWidget(top_bar)
+        
+        # 内容区
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 0, 10, 10)
         
         # ========== 账号信息 ==========
         info_layout = QHBoxLayout()
@@ -417,6 +459,29 @@ class AccountDetailDialog(QDialog):
         self._last_progress_time = 0
         self._avg_per_unit = 0
         self._smoothed_remaining = 0
+        
+        # 添加内容区到主布局
+        main_layout.addLayout(layout)
+    
+    def toggle_maximize(self):
+        """切换最大化/还原"""
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+    
+    def mousePressEvent(self, event):
+        """鼠标按下事件 - 记录拖动位置"""
+        if event.button() == Qt.MouseButton.LeftButton and event.y() < 40:
+            self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """鼠标移动事件 - 窗口拖动"""
+        if hasattr(self, '_drag_pos') and self._drag_pos and event.buttons() & Qt.MouseButton.LeftButton:
+            if event.y() < 40:
+                self.move(event.globalPos() - self._drag_pos)
+                event.accept()
     
     def log(self, message: str):
         """添加日志"""
@@ -1234,37 +1299,61 @@ class AccountDetailDialog(QDialog):
         logger.info(f"账号详情窗口已关闭 - 账号: {self.account.username}")
         event.accept()
     
-    def set_background(self):
+    def setup_video_background(self):
+        """设置视频背景"""
+        import os
+        import sys
+        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem, QGraphicsScene, QGraphicsView
+        from PyQt5.QtCore import QUrl, QSizeF
+        
         # 获取应用程序路径
         if getattr(sys, 'frozen', False):
-            # 如果是打包后的应用程序
-            if hasattr(sys, '_MEIPASS'):
-                # 单文件版本，资源文件在临时目录中
-                app_path = sys._MEIPASS
-            else:
-                # 目录版本
-                app_path = os.path.dirname(sys.executable)
-                # 检查资源文件是否在根目录
-                if not os.path.exists(os.path.join(app_path, 'ZR.ico')):
-                    # 如果不在根目录，尝试在_internal目录中查找
-                    internal_path = os.path.join(app_path, '_internal')
-                    if os.path.exists(os.path.join(internal_path, 'ZR.ico')):
-                        app_path = internal_path
+            app_path = os.path.dirname(sys.executable)
         else:
-            # 如果是开发环境
-            app_path = os.path.dirname(os.path.abspath(__file__))
-            app_path = os.path.dirname(app_path)  # 回到项目根目录
+            app_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
-        # 设置背景图片
-        bg_path = os.path.join(app_path, 'ZR.png')
-        if os.path.exists(bg_path):
-            pixmap = QPixmap(bg_path)
-            palette = self.palette()
-            palette.setBrush(self.backgroundRole(), QBrush(pixmap.scaled(
-                self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
-            self.setPalette(palette)
+        video_path = os.path.join(app_path, 'UI B2.mp4')
+        
+        # 创建图形场景和视图作为背景
+        self.graphics_scene = QGraphicsScene()
+        self.graphics_view = QGraphicsView(self.graphics_scene)
+        self.graphics_view.setStyleSheet("background: transparent; border: none;")
+        self.graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.graphics_view.setGeometry(0, 0, self.width(), self.height())
+        self.graphics_view.lower()
+        self.graphics_view.show()
+        
+        # 创建视频项
+        self.video_item = QGraphicsVideoItem()
+        self.video_item.setSize(QSizeF(720, 960))
+        self.graphics_scene.addItem(self.video_item)
+        
+        # 播放视频
+        if os.path.exists(video_path):
+            try:
+                self.video_player = QMediaPlayer()
+                self.video_player.setVideoOutput(self.video_item)
+                self.video_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_path)))
+                self.video_player.setVolume(0)
+                self.video_player.mediaStatusChanged.connect(self._on_video_status_changed)
+                self.video_player.play()
+            except Exception as e:
+                print(f"设置视频背景失败: {e}")
+    
+    def _on_video_status_changed(self, status):
+        """视频状态改变 - 循环播放"""
+        from PyQt5.QtMultimedia import QMediaPlayer
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.video_player.setPosition(0)
+            self.video_player.play()
     
     def resizeEvent(self, event):
-        # 窗口大小改变时重新设置背景
-        self.set_background()
+        # 窗口大小改变时更新视频背景
+        super().resizeEvent(event)
+        if hasattr(self, 'graphics_view'):
+            self.graphics_view.setGeometry(0, 0, self.width(), self.height())
+        if hasattr(self, 'video_item'):
+            self.video_item.setSize(QSizeF(self.width(), self.height()))
         super().resizeEvent(event)

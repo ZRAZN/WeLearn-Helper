@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor
 from core.account_manager import AccountManager, Account
 from core.logger import logger
+from ui.jelly_button import JellyButton
 
 
 class AddAccountDialog(QDialog):
@@ -127,14 +128,20 @@ class AccountView(QWidget):
     
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(10, 10, 10, 0)
+        layout.setSpacing(5)
         
         toolbar_layout = QHBoxLayout()
+        toolbar_layout.setSpacing(10)
         
-        self.add_btn = QPushButton("➕ 添加账号")
-        self.delete_btn = QPushButton("🗑️ 删除选中")
-        self.refresh_btn = QPushButton("🔄 刷新列表")
-        self.excel_import_btn = QPushButton("批量导入")
+        self.add_btn = JellyButton("➕ 添加账号")
+        self.add_btn.set_jelly_style("#4CAF50", "#43A047", "#2E7D32")
+        self.delete_btn = JellyButton("🗑️ 删除选中")
+        self.delete_btn.set_jelly_style("#f44336", "#e53935", "#c62828")
+        self.refresh_btn = JellyButton("🔄 刷新列表")
+        self.refresh_btn.set_jelly_style("#2196F3", "#1E88E5", "#1565C0")
+        self.excel_import_btn = JellyButton("批量导入")
+        self.excel_import_btn.set_jelly_style("#FF9800", "#FB8C00", "#EF6C00")
         
         self.add_btn.clicked.connect(self.add_account)
         self.delete_btn.clicked.connect(self.delete_selected)
@@ -157,6 +164,48 @@ class AccountView(QWidget):
             '用户名', '昵称', '状态', '目标课程', '进度', '操作'
         ])
         
+        # 直接设置表格样式
+        self.account_table.setStyleSheet("""
+            QTableWidget {
+                background-color: rgba(255, 255, 255, 0.45);
+                gridline-color: rgba(180, 180, 180, 0.5);
+                border: 1px solid rgba(180, 180, 180, 0.6);
+                border-radius: 8px;
+            }
+            QTableWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid rgba(180, 180, 180, 0.4);
+                background-color: transparent;
+                min-height: 60px;
+            }
+            QTableWidget::item:selected {
+                background-color: rgba(120, 200, 120, 0.45);
+                color: #333333;
+            }
+            QTableWidget::item:hover {
+                background-color: rgba(120, 200, 120, 0.2);
+            }
+            QTableCornerButton::section {
+                background-color: rgba(255, 255, 255, 0.45);
+                border: none;
+                border-bottom: 2px solid #4CAF50;
+                border-right: 1px solid rgba(180, 180, 180, 0.6);
+            }
+            QHeaderView::section {
+                background-color: rgba(255, 255, 255, 0.45);
+                padding: 10px 8px;
+                border: none;
+                border-bottom: 2px solid #4CAF50;
+                border-right: 1px solid rgba(180, 180, 180, 0.6);
+                font-weight: bold;
+                color: #333333;
+                font-size: 14px;
+            }
+            QHeaderView {
+                background: transparent;
+            }
+        """)
+        
         header = self.account_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
@@ -165,13 +214,22 @@ class AccountView(QWidget):
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)
         header.setDefaultSectionSize(100)
-        header.resizeSection(0, 150)
-        header.resizeSection(3, 180)
+        header.resizeSection(0, 150)  # 用户名（能显示11个数字）
+        header.resizeSection(1, 100)  # 昵称
+        header.resizeSection(2, 100)  # 状态
+        header.resizeSection(3, 320)  # 目标课程（变窄）
+        header.resizeSection(4, 600)  # 进度
+        header.resizeSection(5, 200)  # 操作
+        
+        # 设置行高
+        self.account_table.verticalHeader().setDefaultSectionSize(60)
         header.setStretchLastSection(True)
         
         self.account_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.account_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.account_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.account_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.account_table.horizontalHeader().setStretchLastSection(False)
         
         self.account_table.itemDoubleClicked.connect(self.open_detail)
         
@@ -179,14 +237,11 @@ class AccountView(QWidget):
         
         layout.addWidget(self._create_separator())
         
-        status_layout = QHBoxLayout()
-        self.status_label = QLabel("账号数: 0")
-        self.running_label = QLabel("运行中: 0")
-        status_layout.addWidget(self.status_label)
-        status_layout.addWidget(self.running_label)
-        status_layout.addStretch()
-        
-        layout.addLayout(status_layout)
+        # 状态标签（隐藏，供刷新时更新）
+        self.status_label = QLabel("")
+        self.status_label.hide()
+        self.running_label = QLabel("")
+        self.running_label.hide()
     
     @staticmethod
     def _create_separator():
@@ -435,10 +490,20 @@ class AccountView(QWidget):
             # 进度
             self.account_table.setItem(i, 4, QTableWidgetItem(acc.progress or "-"))
             # 操作按钮
-            manage_btn = QPushButton("管理")
+            manage_btn = JellyButton("管理")
+            manage_btn.setFixedSize(130, 40)
+            manage_btn.set_jelly_style("#9C27B0", "#8E24AA", "#6A1B9A")
             manage_btn.setProperty("username", acc.username)
             manage_btn.clicked.connect(self.on_manage_clicked)
-            self.account_table.setCellWidget(i, 5, manage_btn)
+            
+            # 创建容器让按钮居中
+            btn_container = QWidget()
+            btn_layout = QHBoxLayout(btn_container)
+            btn_layout.setContentsMargins(0, 0, 0, 0)
+            btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            btn_layout.addWidget(manage_btn)
+            
+            self.account_table.setCellWidget(i, 5, btn_container)
         
         # 更新状态栏
         self.status_label.setText(f"账号数: {len(accounts)}")

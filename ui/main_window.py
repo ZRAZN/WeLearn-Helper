@@ -6,9 +6,11 @@ import os
 import sys
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (
-    QMainWindow, QVBoxLayout, QWidget, QMenuBar, QMenu, QAction,
-    QMessageBox, QStatusBar, QSystemTrayIcon, QApplication, QStyle
+    QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton,
+    QMenuBar, QMenu, QAction, QMessageBox, QStatusBar, QSystemTrayIcon, 
+    QApplication, QStyle
 )
+from ui.jelly_button import JellyButton
 from PyQt5.QtGui import QIcon, QBitmap, QPixmap, QPainter, QBrush
 
 # 使用标准绝对导入
@@ -35,9 +37,10 @@ class WeLearnUI(QMainWindow):
         self.init_ui()
         self.init_tray()  # 初始化系统托盘
         
-        self.show_startup_warning()  # 显示启动警告
-        self.show_update_announcement()  # 显示更新公告
-        QTimer.singleShot(1000, self.check_incomplete_tasks)  # 检查未完成任务
+        # 延迟显示弹窗，确保主窗口先显示
+        QTimer.singleShot(500, self.show_startup_warning)  # 显示启动警告
+        QTimer.singleShot(600, self.show_update_announcement)  # 显示更新公告
+        QTimer.singleShot(1500, self.check_incomplete_tasks)  # 检查未完成任务
 
     
     def center_window(self):
@@ -55,37 +58,158 @@ class WeLearnUI(QMainWindow):
     
     def init_ui(self):
         self.setWindowTitle("ZR | WeLearn学习助手 V5.0.12    致力于把大学生的时间还给大学生")
-        self.setGeometry(100, 100, 900, 600)
-        self.setMinimumSize(800, 500)
+        # 按视频分辨率等比例缩小
+        self.setGeometry(100, 100, 1520, 855)
+        self.setMinimumSize(1280, 720)
+        
+        # 完全无边框窗口
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         
         # 加载统一样式表
         self.load_style_sheet()
         
-        # 使用统一的路径获取方法
-        app_path = self.get_background_path()
-        if app_path is None:
-            # 如果无法获取背景图片路径，使用当前目录
-            app_path = os.path.dirname(os.path.abspath(__file__))
-            print(f"使用默认目录: {app_path}")
+        # 获取应用路径
+        if getattr(sys, 'frozen', False):
+            app_path = os.path.dirname(sys.executable)
         else:
-            app_path = os.path.dirname(app_path)  # 获取目录而不是文件
+            app_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
+        # 设置图标
         icon_path = os.path.join(app_path, 'ZR.ico')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
-            print(f"已设置窗口图标: {icon_path}")
-        else:
-            print(f"图标文件不存在: {icon_path}")
         
-        bg_path = os.path.join(app_path, 'ZR.png')
-        if os.path.exists(bg_path):
-            palette = self.palette()
-            pixmap = QPixmap(bg_path)
-            palette.setBrush(self.backgroundRole(), QBrush(pixmap.scaled(self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
-            self.setPalette(palette)
-            print(f"已设置背景图片: {bg_path}")
+        # 使用视频作为动态背景
+        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
+        from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView
+        from PyQt5.QtCore import QUrl
+        
+        bg_video_path = os.path.join(app_path, 'ui b.mp4')
+        print(f"视频路径: {bg_video_path}, 存在: {os.path.exists(bg_video_path)}")
+        
+        # 创建图形场景和视图
+        self.graphics_scene = QGraphicsScene()
+        self.graphics_view = QGraphicsView(self.graphics_scene)
+        self.graphics_view.setStyleSheet("background: transparent; border: none;")
+        self.graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setCentralWidget(self.graphics_view)
+        
+        # 创建视频项 - 铺满窗口
+        self.video_item = QGraphicsVideoItem()
+        from PyQt5.QtCore import QSizeF
+        self.video_item.setSize(QSizeF(1520, 855))
+        self.video_item.setScale(1.0)
+        self.graphics_scene.addItem(self.video_item)
+        
+        # 创建内容容器覆盖在视频上
+        self.content_container = QWidget()
+        self.content_container.setStyleSheet("background: transparent;")
+        content_layout = QVBoxLayout(self.content_container)
+        content_layout.setContentsMargins(0, 40, 0, 80)
+        content_layout.setSpacing(0)
+        
+        # 账号列表
+        self.account_view = AccountView()
+        self.account_view.open_detail_requested.connect(self.open_account_detail)
+        self.account_view.setStyleSheet("background: transparent;")
+        content_layout.addWidget(self.account_view)
+        
+        # 将内容容器添加到场景
+        self.content_proxy = self.graphics_scene.addWidget(self.content_container)
+        self.content_proxy.setZValue(1)
+        self.content_proxy.setPos(0, 0)
+        
+        # 播放视频
+        if os.path.exists(bg_video_path):
+            try:
+                self.video_player = QMediaPlayer()
+                self.video_player.setVideoOutput(self.video_item)
+                self.video_player.setMedia(QMediaContent(QUrl.fromLocalFile(bg_video_path)))
+                self.video_player.setVolume(0)
+                self.video_player.mediaStatusChanged.connect(self.on_media_status_changed)
+                self.video_player.play()
+                print(f"视频背景已设置并播放")
+            except Exception as e:
+                print(f"设置视频背景失败: {e}")
         else:
-            print(f"背景图片文件不存在: {bg_path}")
+            print(f"视频文件不存在: {bg_video_path}")
+        
+        # 顶部栏
+        self.top_bar = QWidget(self)
+        self.top_bar.setFixedHeight(40)
+        self.top_bar.setStyleSheet("background: transparent;")
+        self.top_bar.setGeometry(0, 0, 1520, 40)
+        top_layout = QHBoxLayout(self.top_bar)
+        top_layout.setContentsMargins(15, 10, 15, 0)
+        top_layout.setSpacing(0)
+        top_layout.addStretch()
+        
+        # 三个圆点按钮
+        self.min_btn = QPushButton()
+        self.min_btn.setFixedSize(12, 12)
+        self.min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
+        self.min_btn.clicked.connect(self.showMinimized)
+        top_layout.addWidget(self.min_btn)
+        top_layout.addSpacing(8)
+        
+        self.max_btn = QPushButton()
+        self.max_btn.setFixedSize(12, 12)
+        self.max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
+        self.max_btn.clicked.connect(self.toggle_maximize)
+        top_layout.addWidget(self.max_btn)
+        top_layout.addSpacing(8)
+        
+        self.close_btn = QPushButton()
+        self.close_btn.setFixedSize(12, 12)
+        self.close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+        self.close_btn.clicked.connect(self.close)
+        top_layout.addWidget(self.close_btn)
+        
+        # 底部信息栏
+        self.bottom_bar = QWidget(self)
+        self.bottom_bar.setGeometry(0, 780, 1520, 56)
+        self.bottom_bar.setStyleSheet("background: transparent;")
+        bottom_layout = QHBoxLayout(self.bottom_bar)
+        bottom_layout.setContentsMargins(15, 0, 15, 0)
+        
+        # 账号数和运行中
+        self.status_label = QLabel("账号数: 0")
+        self.status_label.setStyleSheet("color: #666; font-size: 13px;")
+        bottom_layout.addWidget(self.status_label)
+        
+        self.running_label = QLabel("运行中: 0")
+        self.running_label.setStyleSheet("color: #666; font-size: 13px;")
+        bottom_layout.addWidget(self.running_label)
+        
+        bottom_layout.addStretch()
+        
+        # 声明
+        disclaimer_label = QLabel("本软件仅供学术交流，禁止用于商业途径")
+        disclaimer_label.setStyleSheet("color: #FF0000; font-size: 16px; font-weight: bold;")
+        bottom_layout.addWidget(disclaimer_label)
+        
+        bottom_layout.addStretch()
+        
+        # 网络工具箱按钮
+        self.network_fix_btn = JellyButton("🔧 网络工具箱")
+        self.network_fix_btn.set_jelly_style("#2196F3", "#1976D2", "#1565C0")
+        self.network_fix_btn.setMinimumHeight(48)
+        self.network_fix_btn.clicked.connect(self.open_network_fix)
+        bottom_layout.addWidget(self.network_fix_btn)
+        
+        # 打赏按钮
+        self.donate_btn = JellyButton("❤️ 打赏")
+        self.donate_btn.set_jelly_style("#E91E63", "#C2185B", "#AD1457")
+        self.donate_btn.setMinimumHeight(48)
+        self.donate_btn.clicked.connect(self.show_donate)
+        bottom_layout.addWidget(self.donate_btn)
+        
+        # 状态栏（用于显示消息）
+        self.status_bar = QStatusBar(self)
+        self.status_bar.setGeometry(0, 830, 1520, 25)
+        self.status_bar.setStyleSheet("background: transparent;")
         
         self.setStyleSheet("""
             QGroupBox {
@@ -134,63 +258,37 @@ class WeLearnUI(QMainWindow):
                 font-weight: bold;
             }
         """)
-        
-        self.account_view = AccountView()
-        self.account_view.open_detail_requested.connect(self.open_account_detail)
-        self.setCentralWidget(self.account_view)
-        
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("就绪 - 添加账号开始使用")
-        
-        from PyQt5.QtWidgets import QLabel
-        disclaimer_label = QLabel("本软件仅供学术交流，禁止用于商业途径")
-        disclaimer_label.setStyleSheet("color: red; font-size: 14px; font-weight: bold; padding: 2px;")
-        self.status_bar.addPermanentWidget(disclaimer_label)
-        
-        # 网络工具箱按钮
-        from PyQt5.QtWidgets import QPushButton
-        self.network_fix_btn = QPushButton("🔧 网络工具箱")
-        self.network_fix_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                border: none;
-                padding: 4px 12px;
-                font-size: 12px;
-                border-radius: 3px;
-            }
-            QPushButton:hover { background-color: #1976D2; }
-        """)
-        self.network_fix_btn.clicked.connect(self.open_network_fix)
-        self.status_bar.addPermanentWidget(self.network_fix_btn)
-        
-        # 打赏按钮
-        self.donate_btn = QPushButton("❤️ 打赏")
-        self.donate_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #E91E63;
-                color: white;
-                border: none;
-                padding: 4px 12px;
-                font-size: 12px;
-                border-radius: 3px;
-            }
-            QPushButton:hover { background-color: #C2185B; }
-        """)
-        self.donate_btn.clicked.connect(self.show_donate)
-        self.status_bar.addPermanentWidget(self.donate_btn)
     
     def create_menu_bar(self):
         """创建菜单栏"""
         pass
     
+    def mousePressEvent(self, event):
+        """鼠标按下事件 - 记录拖动位置"""
+        if event.button() == Qt.MouseButton.LeftButton and event.y() < 40:
+            self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """鼠标移动事件 - 窗口拖动"""
+        if hasattr(self, '_drag_pos') and event.buttons() & Qt.MouseButton.LeftButton:
+            if event.y() < 40:
+                self.move(event.globalPos() - self._drag_pos)
+                event.accept()
+    
+    def toggle_maximize(self):
+        """切换最大化/还原"""
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+    
     def open_network_fix(self):
         """打开网络修复工具箱"""
         from ui.network_fix_dialog import NetworkFixDialog
-        dialog = NetworkFixDialog()
-        dialog.setWindowTitle("网络诊断与修复工具箱")
-        dialog.show()
+        self.network_fix_dialog = NetworkFixDialog()
+        self.network_fix_dialog.setWindowTitle("网络诊断与修复工具箱")
+        self.network_fix_dialog.show()
     
     def show_donate(self):
         """显示赞赏码"""
@@ -237,18 +335,8 @@ class WeLearnUI(QMainWindow):
         layout.addWidget(tip_label)
         
         # 关闭按钮
-        close_btn = QPushButton("关闭")
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px 24px;
-                font-size: 13px;
-                border-radius: 4px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-        """)
+        close_btn = JellyButton("关闭")
+        close_btn.set_jelly_style("#4CAF50", "#43A047", "#2E7D32")
         close_btn.clicked.connect(dialog.close)
         layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         
@@ -408,6 +496,14 @@ class WeLearnUI(QMainWindow):
         print("无法找到背景图片文件")
         return None
     
+    def on_media_status_changed(self, status):
+        """视频播放状态改变 - 循环播放"""
+        from PyQt5.QtMultimedia import QMediaPlayer
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.video_player.setPosition(0)
+            self.video_player.play()
+    
+    
     def load_style_sheet(self):
         """加载统一样式表"""
         # 获取样式文件路径
@@ -430,108 +526,126 @@ class WeLearnUI(QMainWindow):
 
     def show_startup_warning(self):
         """显示启动警告"""
-        # 不设置parent，使其在任务栏显示
-        msg_box = QMessageBox()
-        msg_box.setWindowTitle("使用声明")
-        msg_box.setIcon(QMessageBox.Warning)
-        # 移除问号帮助按钮
-        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit
+        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem, QGraphicsScene, QGraphicsView
+        from PyQt5.QtCore import QUrl, QSizeF
         
-        # 设置警告窗口图标
-        bg_path = self.get_background_path()
-        if bg_path:
-            ico_path = os.path.join(os.path.dirname(bg_path), 'ZR.ico')
+        # 播放提示音
+        import winsound
+        try:
+            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+        except:
+            pass
+        
+        # 获取应用路径
+        if getattr(sys, 'frozen', False):
+            app_path = os.path.dirname(sys.executable)
         else:
-            ico_path = None
-        if ico_path and os.path.exists(ico_path):
-            msg_box.setWindowIcon(QIcon(ico_path))
-        else:
-            msg_box.setWindowIcon(self.windowIcon())
+            app_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
-        # 获取背景图片路径（考虑打包后的环境）
-        background_path = self.get_background_path()
-        print(f"启动警告获取到的背景图片路径: {background_path}")
+        video_path = os.path.join(app_path, 'UI B2.mp4')
         
-        if background_path and os.path.exists(background_path):
-            # 确保路径使用正斜杠，即使在Windows上
-            background_path = background_path.replace("\\", "/")
-            print(f"启动警告处理后的背景图片路径: {background_path}")
-            
-            msg_box.setStyleSheet(f"""
-                QMessageBox {{
-                    background-image: url(file:///{background_path});
-                    background-position: center;
-                    background-repeat: no-repeat;
-                    background-attachment: fixed;
-                }}
-                QMessageBox QLabel {{
-                    background-color: rgba(255, 255, 255, 220);
-                    padding: 10px;
-                    border-radius: 5px;
-                }}
-                QMessageBox QPushButton {{
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    font-size: 13px;
-                    border-radius: 4px;
-                }}
-                QMessageBox QPushButton:hover {{
-                    background-color: #45a049;
-                }}
-            """)
-        else:
-            # 如果没有背景图片，使用纯色背景
-            msg_box.setStyleSheet("""
-                QMessageBox {
-                    background-color: #f0f0f0;
-                }
-                QMessageBox QLabel {
-                    background-color: rgba(255, 255, 255, 220);
-                    padding: 10px;
-                    border-radius: 5px;
-                }
-                QMessageBox QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    font-size: 13px;
-                    border-radius: 4px;
-                }
-                QMessageBox QPushButton:hover {
-                    background-color: #45a049;
-                }
-            """)
+        # 创建对话框
+        dialog = QDialog()
+        dialog.setWindowTitle("使用声明")
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        dialog.resize(540, 720)  # 3:4 比例
         
-        warning_text = """版权声明：
-
-本软件为WeLearn学习助手V5.0.12版本，由ZR修改并打包。
-
-使用条款：
-1. 本软件仅供学习交流使用，严禁用于任何商业用途
-2. 软件版权归原开发者所有，本修改版仅作功能优化
-3. 用户使用本软件所产生的任何后果由用户自行承担
-4. 分发本软件时请保持版权信息完整
-
-感谢您的理解与支持！"""
-        msg_box.setText(warning_text)
+        # 设置图标
+        ico_path = os.path.join(app_path, 'ZR.ico')
+        if os.path.exists(ico_path):
+            dialog.setWindowIcon(QIcon(ico_path))
         
-        ok_button = msg_box.addButton("我已了解", QMessageBox.AcceptRole)
-        msg_box.setDefaultButton(ok_button)
+        # 设置视频背景
+        graphics_scene = QGraphicsScene()
+        graphics_view = QGraphicsView(graphics_scene)
+        graphics_view.setStyleSheet("background: transparent; border: none;")
+        graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        graphics_view.setGeometry(0, 0, 540, 720)
+        graphics_view.setParent(dialog)
+        graphics_view.lower()
         
-        msg_box.show()
-        msg_box.setGeometry(
+        video_item = QGraphicsVideoItem()
+        video_item.setSize(QSizeF(540, 720))
+        graphics_scene.addItem(video_item)
+        
+        if os.path.exists(video_path):
+            try:
+                video_player = QMediaPlayer()
+                video_player.setVideoOutput(video_item)
+                video_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_path)))
+                video_player.setVolume(0)
+                video_player.play()
+                dialog._video_player = video_player  # 保持引用
+            except Exception as e:
+                print(f"设置视频背景失败: {e}")
+        
+        # 主布局
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setSpacing(15)
+        
+        # 标题
+        title_label = QLabel("使用声明")
+        title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #333; background: transparent;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(title_label)
+        
+        # 内容
+        warning_text = QTextEdit()
+        warning_text.setReadOnly(True)
+        warning_text.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(255, 255, 255, 220);
+                padding: 15px;
+                border-radius: 8px;
+                border: 1px solid #ddd;
+                font-size: 14px;
+            }
+        """)
+        warning_text.setHtml("""
+        <p><b>WeLearn学习助手V5.0.12版本</b>，由ZR修改并打包。</p>
+        <p><b>使用条款：</b></p>
+        <ol>
+        <li>本软件仅供学习交流使用，严禁用于任何商业用途</li>
+        <li>软件版权归原开发者所有，本修改版仅作功能优化</li>
+        <li>用户使用本软件所产生的任何后果由用户自行承担</li>
+        <li>分发本软件时请保持版权信息完整</li>
+        </ol>
+        <p><b>感谢您的理解与支持！</b></p>
+        """)
+        main_layout.addWidget(warning_text)
+        
+        # 按钮
+        ok_button = QPushButton("我已了解")
+        ok_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                font-size: 15px;
+                border-radius: 6px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
+        ok_button.setDefault(True)
+        ok_button.clicked.connect(dialog.accept)
+        main_layout.addWidget(ok_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        # 居中显示
+        dialog.setGeometry(
             QStyle.alignedRect(
                 Qt.LeftToRight,
                 Qt.AlignCenter,
-                msg_box.size(),
+                dialog.size(),
                 QApplication.desktop().availableGeometry()
             )
         )
         
-        msg_box.exec_()
+        dialog.exec_()
     
     def show_update_announcement(self):
         """显示更新公告"""
@@ -592,27 +706,55 @@ class WeLearnUI(QMainWindow):
         except:
             pass
         
-        # 创建自定义对话框以支持滚动功能
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QCheckBox, QHBoxLayout, QStyle
-        from PyQt5.QtCore import Qt, QSize
-        from PyQt5.QtGui import QPixmap, QPalette
+        # 获取应用路径
+        if getattr(sys, 'frozen', False):
+            app_path = os.path.dirname(sys.executable)
+        else:
+            app_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
-        # 不设置parent，使其在任务栏显示
+        video_path = os.path.join(app_path, 'UI B2.mp4')
+        
+        # 创建对话框
         dialog = QDialog()
         dialog.setWindowTitle("更新公告")
-        dialog.setMinimumSize(600, 500)
-        dialog.resize(600, 500)  # 设置初始大小
-        # 移除问号帮助按钮
+        dialog.setMinimumSize(540, 720)
+        dialog.resize(540, 720)  # 3:4 比例
         dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         
         # 设置窗口图标
-        bg_path = self.get_background_path()
-        if bg_path:
-            ico_path = os.path.join(os.path.dirname(bg_path), 'ZR.ico')
-        else:
-            ico_path = None
-        if ico_path and os.path.exists(ico_path):
+        ico_path = os.path.join(app_path, 'ZR.ico')
+        if os.path.exists(ico_path):
             dialog.setWindowIcon(QIcon(ico_path))
+        
+        # 设置视频背景
+        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem, QGraphicsScene, QGraphicsView
+        from PyQt5.QtCore import QUrl, QSizeF
+        
+        graphics_scene = QGraphicsScene()
+        graphics_view = QGraphicsView(graphics_scene)
+        graphics_view.setStyleSheet("background: transparent; border: none;")
+        graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        graphics_view.setGeometry(0, 0, 540, 720)
+        graphics_view.setParent(dialog)
+        graphics_view.lower()
+        
+        video_item = QGraphicsVideoItem()
+        video_item.setSize(QSizeF(540, 720))
+        graphics_scene.addItem(video_item)
+        
+        if os.path.exists(video_path):
+            try:
+                video_player = QMediaPlayer()
+                video_player.setVideoOutput(video_item)
+                video_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_path)))
+                video_player.setVolume(0)
+                video_player.mediaStatusChanged.connect(lambda s: (video_player.setPosition(0), video_player.play()) if s == QMediaPlayer.MediaStatus.EndOfMedia else None)
+                video_player.play()
+                dialog._video_player = video_player
+            except Exception as e:
+                print(f"设置视频背景失败: {e}")
         else:
             dialog.setWindowIcon(self.windowIcon())
         
@@ -804,22 +946,8 @@ class WeLearnUI(QMainWindow):
         
         dialog.setLayout(main_layout)
         
-        # 设置样式 - 使用更简单可靠的方法
-        if background_path and os.path.exists(background_path):
-            # 使用QPalette设置背景图片
-            palette = dialog.palette()
-            pixmap = QPixmap(background_path)
-            if not pixmap.isNull():
-                from PyQt5.QtGui import QBrush
-                palette.setBrush(QPalette.Background, QBrush(pixmap))
-                dialog.setPalette(palette)
-                print("使用QPalette设置背景图片")
-            else:
-                print("无法加载背景图片，使用默认背景")
-                dialog.setStyleSheet("QDialog { background-color: #f0f0f0; }")
-        else:
-            print("背景图片路径无效，使用默认背景")
-            dialog.setStyleSheet("QDialog { background-color: #f0f0f0; }")
+        # 设置样式 - 使用透明背景
+        dialog.setStyleSheet("QDialog { background: transparent; }")
         
         # 设置文本编辑框样式
         announcement_text.setStyleSheet("""
@@ -1387,13 +1515,45 @@ class WeLearnUI(QMainWindow):
                 self.show_from_tray()
     
     def resizeEvent(self, event):
-        """窗口大小改变时重新设置背景图片"""
+        """窗口大小改变时更新视频和内容尺寸"""
         super().resizeEvent(event)
+        from PyQt5.QtCore import QSizeF
         
-        # 使用统一的路径获取方法
-        bg_path = self.get_background_path()
-        if bg_path and os.path.exists(bg_path):
-            palette = self.palette()
-            pixmap = QPixmap(bg_path)
-            palette.setBrush(self.backgroundRole(), QBrush(pixmap.scaled(self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
-            self.setPalette(palette)
+        w = self.width()
+        h = self.height()
+        
+        # 更新视频项尺寸 - 按视频原始分辨率等比例缩放铺满窗口
+        if hasattr(self, 'video_item'):
+            video_ratio = 2560 / 1440
+            window_ratio = w / h
+            if window_ratio > video_ratio:
+                new_w = w
+                new_h = int(w / video_ratio)
+            else:
+                new_h = h
+                new_w = int(h * video_ratio)
+            self.video_item.setSize(QSizeF(new_w, new_h))
+            self.video_item.setPos((w - new_w) / 2, (h - new_h) / 2)
+        
+        # 更新内容容器尺寸
+        if hasattr(self, 'content_container'):
+            self.content_container.setGeometry(0, 0, w, h)
+        
+        # 更新顶部栏尺寸
+        if hasattr(self, 'top_bar'):
+            self.top_bar.setGeometry(0, 0, w, 40)
+        
+        # 更新底部信息栏位置
+        if hasattr(self, 'bottom_bar'):
+            self.bottom_bar.setGeometry(0, h - 56, w, 56)
+        
+        # 更新表格列宽
+        if hasattr(self, 'account_view') and hasattr(self.account_view, 'account_table'):
+            table = self.account_view.account_table
+            available = w - 40  # 减去边距
+            table.setColumnWidth(0, int(available * 0.10))  # 用户名 10%
+            table.setColumnWidth(1, int(available * 0.07))  # 昵称 7%
+            table.setColumnWidth(2, int(available * 0.07))  # 状态 7%
+            table.setColumnWidth(3, int(available * 0.22))  # 目标课程 22%
+            table.setColumnWidth(4, int(available * 0.40))  # 进度 40%
+            table.setColumnWidth(5, int(available * 0.14))  # 操作 14%

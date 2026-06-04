@@ -5,10 +5,11 @@ import os
 import sys
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QDialog, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton,
     QGroupBox, QProgressBar, QTextEdit, QCheckBox, QMessageBox
 )
 from PyQt5.QtGui import QPixmap, QIcon, QColor
+from ui.jelly_button import JellyButton
 
 from core.network_fixer import NetworkDiagnostics, NetworkFixer, is_admin
 
@@ -66,62 +67,83 @@ class NetworkFixDialog(QDialog):
         self.setWindowTitle("网络诊断与修复工具箱")
         self.setMinimumSize(600, 500)
         self.resize(600, 500)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        # 完全无边框
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self.set_background()
         self.init_ui()
         self.diagnosis_results = []
         self.fix_checkboxes = {}
+        self._drag_pos = None
     
     def init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # 顶部栏
+        top_bar = QWidget()
+        top_bar.setFixedHeight(40)
+        top_bar.setStyleSheet("background: transparent;")
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(15, 10, 15, 0)
+        top_layout.setSpacing(0)
+        top_layout.addStretch()
+        
+        # 最小化按钮（黄色）
+        min_btn = QPushButton()
+        min_btn.setFixedSize(12, 12)
+        min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
+        min_btn.clicked.connect(self.showMinimized)
+        top_layout.addWidget(min_btn)
+        top_layout.addSpacing(8)
+        
+        # 最大化按钮（绿色）
+        max_btn = QPushButton()
+        max_btn.setFixedSize(12, 12)
+        max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
+        max_btn.clicked.connect(self.toggle_maximize)
+        top_layout.addWidget(max_btn)
+        top_layout.addSpacing(8)
+        
+        # 关闭按钮（红色）
+        close_btn = QPushButton()
+        close_btn.setFixedSize(12, 12)
+        close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+        close_btn.clicked.connect(self.close)
+        top_layout.addWidget(close_btn)
+        
+        main_layout.addWidget(top_bar)
+        
+        # 内容区
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(15, 0, 15, 15)
+        content_layout.setSpacing(10)
         
         # 标题
         title = QLabel("网络诊断与修复工具箱")
         title.setStyleSheet("font-size: 18px; font-weight: bold; color: #333;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        content_layout.addWidget(title)
         
         # 操作按钮
         btn_layout = QHBoxLayout()
-        self.diagnose_btn = QPushButton("🔍 一键诊断")
-        self.diagnose_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                border-radius: 5px;
-            }
-            QPushButton:hover { background-color: #1976D2; }
-        """)
+        self.diagnose_btn = JellyButton("🔍 一键诊断")
+        self.diagnose_btn.set_jelly_style("#2196F3", "#1976D2", "#1565C0")
         self.diagnose_btn.clicked.connect(self.start_diagnosis)
         btn_layout.addWidget(self.diagnose_btn)
         
-        self.fix_btn = QPushButton("🔧 修复选中项")
-        self.fix_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                border-radius: 5px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-            QPushButton:disabled { background-color: #cccccc; }
-        """)
+        self.fix_btn = JellyButton("🔧 修复选中项")
+        self.fix_btn.set_jelly_style("#4CAF50", "#43A047", "#2E7D32")
         self.fix_btn.setEnabled(False)
         self.fix_btn.clicked.connect(self.start_fix)
         btn_layout.addWidget(self.fix_btn)
-        layout.addLayout(btn_layout)
+        content_layout.addLayout(btn_layout)
         
         # 进度条
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
+        content_layout.addWidget(self.progress_bar)
         
         # 诊断结果区
         result_group = QGroupBox("诊断结果")
@@ -147,12 +169,34 @@ class NetworkFixDialog(QDialog):
         self.fix_options_group.setVisible(False)
         result_layout.addWidget(self.fix_options_group)
         
-        layout.addWidget(result_group)
+        content_layout.addWidget(result_group)
         
         # 状态栏
         self.status_label = QLabel('点击"一键诊断"开始检测网络状态')
         self.status_label.setStyleSheet("color: #666; font-size: 12px;")
-        layout.addWidget(self.status_label)
+        content_layout.addWidget(self.status_label)
+        
+        main_layout.addWidget(content_widget)
+    
+    def toggle_maximize(self):
+        """切换最大化/还原"""
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+    
+    def mousePressEvent(self, event):
+        """鼠标按下事件 - 记录拖动位置"""
+        if event.button() == Qt.MouseButton.LeftButton and event.y() < 40:
+            self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """鼠标移动事件 - 窗口拖动"""
+        if hasattr(self, '_drag_pos') and self._drag_pos and event.buttons() & Qt.MouseButton.LeftButton:
+            if event.y() < 40:
+                self.move(event.globalPos() - self._drag_pos)
+                event.accept()
     
     def set_background(self):
         if getattr(sys, 'frozen', False):

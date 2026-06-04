@@ -1,8 +1,12 @@
 import sys
+import os
 import traceback
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from ui.main_window import WeLearnUI
 from core.logger import logger
+
+# 强制使用Windows Media Foundation播放视频（解决DirectShow编码问题）
+os.environ['QT_MULTIMEDIA_PREFERRED_PLUGINS'] = 'windowsmediafoundation'
 
 
 def exception_hook(exctype, value, tb):
