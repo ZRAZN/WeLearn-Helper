@@ -1363,6 +1363,11 @@ class AccountDetailDialog(QDialog):
             app_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         video_path = os.path.join(app_path, 'UI B2.mp4')
+        if not os.path.exists(video_path):
+            # 尝试在_internal目录中查找
+            internal_path = os.path.join(app_path, '_internal')
+            if os.path.exists(os.path.join(internal_path, 'UI B2.mp4')):
+                video_path = os.path.join(internal_path, 'UI B2.mp4')
         
         # 创建图形场景和视图作为背景
         self.graphics_scene = QGraphicsScene()
