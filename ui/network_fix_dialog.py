@@ -69,55 +69,96 @@ class NetworkFixDialog(QDialog):
         self.resize(600, 500)
         # 完全无边框
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
-        self.set_background()
+        self._drag_pos = None
+        self.setup_video_background()
         self.init_ui()
         self.diagnosis_results = []
         self.fix_checkboxes = {}
-        self._drag_pos = None
+    
+    def setup_video_background(self):
+        """设置视频背景"""
+        from ui.video_background import setup_video_background
+        result = setup_video_background(self, 'UI B2.mp4', 600, 500)
+        if result:
+            self.graphics_view, self.content_container, self.video_player = result
+            # 设置为主布局
+            main_layout = QVBoxLayout(self)
+            main_layout.setContentsMargins(0, 0, 0, 0)
+            main_layout.setSpacing(0)
+            
+            # 顶部栏
+            top_bar = QWidget()
+            top_bar.setFixedHeight(40)
+            top_bar.setStyleSheet("background: transparent;")
+            top_layout = QHBoxLayout(top_bar)
+            top_layout.setContentsMargins(15, 10, 15, 0)
+            top_layout.setSpacing(0)
+            top_layout.addStretch()
+            
+            min_btn = QPushButton()
+            min_btn.setFixedSize(12, 12)
+            min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
+            min_btn.clicked.connect(self.showMinimized)
+            top_layout.addWidget(min_btn)
+            top_layout.addSpacing(8)
+            
+            max_btn = QPushButton()
+            max_btn.setFixedSize(12, 12)
+            max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
+            max_btn.clicked.connect(self.toggle_maximize)
+            top_layout.addWidget(max_btn)
+            top_layout.addSpacing(8)
+            
+            close_btn = QPushButton()
+            close_btn.setFixedSize(12, 12)
+            close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+            close_btn.clicked.connect(self.close)
+            top_layout.addWidget(close_btn)
+            
+            main_layout.addWidget(top_bar)
+            main_layout.addWidget(self.graphics_view)
     
     def init_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        if hasattr(self, 'content_container'):
+            main_layout = QVBoxLayout(self.content_container)
+        else:
+            main_layout = QVBoxLayout(self)
+            main_layout.setContentsMargins(0, 0, 0, 0)
+            main_layout.setSpacing(0)
+            
+            # 顶部栏
+            top_bar = QWidget()
+            top_bar.setFixedHeight(40)
+            top_bar.setStyleSheet("background: transparent;")
+            top_layout = QHBoxLayout(top_bar)
+            top_layout.setContentsMargins(15, 10, 15, 0)
+            top_layout.setSpacing(0)
+            top_layout.addStretch()
+            
+            min_btn = QPushButton()
+            min_btn.setFixedSize(12, 12)
+            min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
+            min_btn.clicked.connect(self.showMinimized)
+            top_layout.addWidget(min_btn)
+            top_layout.addSpacing(8)
+            
+            max_btn = QPushButton()
+            max_btn.setFixedSize(12, 12)
+            max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
+            max_btn.clicked.connect(self.toggle_maximize)
+            top_layout.addWidget(max_btn)
+            top_layout.addSpacing(8)
+            
+            close_btn = QPushButton()
+            close_btn.setFixedSize(12, 12)
+            close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+            close_btn.clicked.connect(self.close)
+            top_layout.addWidget(close_btn)
+            
+            main_layout.addWidget(top_bar)
         
-        # 顶部栏
-        top_bar = QWidget()
-        top_bar.setFixedHeight(40)
-        top_bar.setStyleSheet("background: transparent;")
-        top_layout = QHBoxLayout(top_bar)
-        top_layout.setContentsMargins(15, 10, 15, 0)
-        top_layout.setSpacing(0)
-        top_layout.addStretch()
-        
-        # 最小化按钮（黄色）
-        min_btn = QPushButton()
-        min_btn.setFixedSize(12, 12)
-        min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
-        min_btn.clicked.connect(self.showMinimized)
-        top_layout.addWidget(min_btn)
-        top_layout.addSpacing(8)
-        
-        # 最大化按钮（绿色）
-        max_btn = QPushButton()
-        max_btn.setFixedSize(12, 12)
-        max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
-        max_btn.clicked.connect(self.toggle_maximize)
-        top_layout.addWidget(max_btn)
-        top_layout.addSpacing(8)
-        
-        # 关闭按钮（红色）
-        close_btn = QPushButton()
-        close_btn.setFixedSize(12, 12)
-        close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
-        close_btn.clicked.connect(self.close)
-        top_layout.addWidget(close_btn)
-        
-        main_layout.addWidget(top_bar)
-        
-        # 内容区
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(15, 0, 15, 15)
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(15, 10, 15, 15)
         content_layout.setSpacing(10)
         
         # 标题
@@ -173,10 +214,26 @@ class NetworkFixDialog(QDialog):
         
         # 状态栏
         self.status_label = QLabel('点击"一键诊断"开始检测网络状态')
-        self.status_label.setStyleSheet("color: #666; font-size: 12px;")
+        self.status_label.setStyleSheet("color: #666; font-size: 12px; background: transparent;")
         content_layout.addWidget(self.status_label)
         
-        main_layout.addWidget(content_widget)
+        # 添加内容到主布局
+        if hasattr(self, 'content_container'):
+            # 使用视频背景时，内容添加到content_container
+            container_layout = QVBoxLayout(self.content_container)
+            container_layout.setContentsMargins(15, 10, 15, 15)
+            container_layout.setSpacing(10)
+            # 把所有内容控件添加到容器
+            for i in range(content_layout.count()):
+                item = content_layout.itemAt(i)
+                if item.widget():
+                    container_layout.addWidget(item.widget())
+                elif item.layout():
+                    container_layout.addLayout(item.layout())
+        else:
+            content_widget = QWidget()
+            content_widget.setLayout(content_layout)
+            main_layout.addWidget(content_widget)
     
     def toggle_maximize(self):
         """切换最大化/还原"""

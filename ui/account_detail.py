@@ -1200,8 +1200,8 @@ class AccountDetailDialog(QDialog):
         self._auto_start_mode = True
         
         # 5秒倒计时
-        self._countdown_seconds = 5
-        self.countdown_label.setText(f"⏱ {self._countdown_seconds}秒后自动开始刷时长...")
+        self._auto_start_countdown = 5
+        self.countdown_label.setText(f"⏱ {self._auto_start_countdown}秒后自动开始刷时长...")
         self.countdown_label.setVisible(True)
         
         self._auto_start_timer = QTimer()
@@ -1213,7 +1213,8 @@ class AccountDetailDialog(QDialog):
         self._auto_start_countdown -= 1
         if self._auto_start_countdown <= 0:
             self._auto_start_timer.stop()
-            self.auto_start_time_study()
+            self.countdown_label.setVisible(False)
+            self.start_study()
         else:
             self.countdown_label.setText(f"⏱ {self._auto_start_countdown}秒后自动开始刷时长...")
             self.countdown_label.setVisible(True)

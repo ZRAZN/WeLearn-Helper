@@ -21,39 +21,95 @@ class AddAccountDialog(QDialog):
     """添加账号对话框"""
     
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(None)  # 不设置parent，独立窗口
         self.setWindowTitle("添加账号")
-        self.setModal(True)
-        self.setMinimumWidth(300)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setMinimumWidth(400)
+        self.resize(400, 350)
+        # 无边框
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
+        self._drag_pos = None
+        self.setup_video_background()
         self.init_ui()
-        self.set_background()
+    
+    def setup_video_background(self):
+        """设置视频背景"""
+        from ui.video_background import setup_video_background
+        result = setup_video_background(self, 'UI B2.mp4', 400, 350)
+        if result:
+            self.graphics_view, self.content_container, self.video_player = result
+            # 设置为主布局
+            main_layout = QVBoxLayout(self)
+            main_layout.setContentsMargins(0, 0, 0, 0)
+            main_layout.setSpacing(0)
+            
+            # 顶部栏
+            top_bar = QWidget()
+            top_bar.setFixedHeight(40)
+            top_bar.setStyleSheet("background: transparent;")
+            top_layout = QHBoxLayout(top_bar)
+            top_layout.setContentsMargins(15, 10, 15, 0)
+            top_layout.setSpacing(0)
+            top_layout.addStretch()
+            
+            min_btn = QPushButton()
+            min_btn.setFixedSize(12, 12)
+            min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
+            min_btn.clicked.connect(self.showMinimized)
+            top_layout.addWidget(min_btn)
+            top_layout.addSpacing(8)
+            
+            close_btn = QPushButton()
+            close_btn.setFixedSize(12, 12)
+            close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+            close_btn.clicked.connect(self.close)
+            top_layout.addWidget(close_btn)
+            
+            main_layout.addWidget(top_bar)
+            main_layout.addWidget(self.graphics_view)
     
     def init_ui(self):
-        layout = QVBoxLayout(self)
+        if hasattr(self, 'content_container'):
+            layout = QVBoxLayout(self.content_container)
+        else:
+            layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 50, 20, 20)
+        layout.setSpacing(10)
+        
+        title = QLabel("添加账号")
+        title.setStyleSheet("color: white; font-size: 18px; font-weight: bold; background: transparent;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
         
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("用户名")
         self.set_input_transparency(self.username_input)
-        layout.addWidget(QLabel("用户名:"))
+        username_label = QLabel("用户名:")
+        username_label.setStyleSheet("color: white; background: transparent;")
+        layout.addWidget(username_label)
         layout.addWidget(self.username_input)
         
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("密码")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.set_input_transparency(self.password_input)
-        layout.addWidget(QLabel("密码:"))
+        password_label = QLabel("密码:")
+        password_label.setStyleSheet("color: white; background: transparent;")
+        layout.addWidget(password_label)
         layout.addWidget(self.password_input)
         
         self.nickname_input = QLineEdit()
         self.nickname_input.setPlaceholderText("昵称（可选，方便识别）")
         self.set_input_transparency(self.nickname_input)
-        layout.addWidget(QLabel("昵称:"))
+        nickname_label = QLabel("昵称:")
+        nickname_label.setStyleSheet("color: white; background: transparent;")
+        layout.addWidget(nickname_label)
         layout.addWidget(self.nickname_input)
         
         button_layout = QHBoxLayout()
         ok_btn = QPushButton("确定")
+        ok_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; } QPushButton:hover { background-color: #45a049; }")
         cancel_btn = QPushButton("取消")
+        cancel_btn.setStyleSheet("QPushButton { background-color: #f44336; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; } QPushButton:hover { background-color: #e53935; }")
         ok_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(ok_btn)
@@ -83,31 +139,24 @@ class AddAccountDialog(QDialog):
             self.nickname_input.text().strip()
         )
     
-    def set_background(self):
-        if getattr(sys, 'frozen', False):
-            if hasattr(sys, '_MEIPASS'):
-                app_path = sys._MEIPASS
-            else:
-                app_path = os.path.dirname(sys.executable)
-                if not os.path.exists(os.path.join(app_path, 'ZR.ico')):
-                    internal_path = os.path.join(app_path, '_internal')
-                    if os.path.exists(os.path.join(internal_path, 'ZR.ico')):
-                        app_path = internal_path
-        else:
-            app_path = os.path.dirname(os.path.abspath(__file__))
-            app_path = os.path.dirname(app_path)
-        
-        bg_path = os.path.join(app_path, 'ZR.png')
-        if os.path.exists(bg_path):
-            pixmap = QPixmap(bg_path)
-            palette = self.palette()
-            palette.setBrush(self.backgroundRole(), QBrush(pixmap.scaled(
-                self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
-            self.setPalette(palette)
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and event.y() < 40:
+            self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        if hasattr(self, '_drag_pos') and self._drag_pos and event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(event.globalPos() - self._drag_pos)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        self._drag_pos = None
+        super().mouseReleaseEvent(event)
     
     def resizeEvent(self, event):
-        self.set_background()
         super().resizeEvent(event)
+        if hasattr(self, 'content_container'):
+            self.content_container.setGeometry(0, 0, self.graphics_view.width(), self.graphics_view.height())
 
 
 class AccountView(QWidget):
