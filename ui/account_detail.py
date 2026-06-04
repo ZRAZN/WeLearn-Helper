@@ -57,14 +57,15 @@ class AccountDetailDialog(QDialog):
         
 
         
-        self.init_ui()
+        self.setup_video_background()  # 先设置视频背景
         self.setWindowTitle(f"账号管理 - {account.nickname or account.username}")
         self.setMinimumSize(600, 800)
         self.resize(720, 960)  # 3:4 比例
         # 完全无边框
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self._drag_pos = None
-        self.setup_video_background()
+        self._ui_initialized = False
+        self.auto_login_attempted = False
     
     def showEvent(self, event):
         """对话框显示时自动登录"""
@@ -178,43 +179,13 @@ class AccountDetailDialog(QDialog):
                 self._pending_continue_task = None
     
     def init_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-        
-        # 顶部栏
-        top_bar = QWidget()
-        top_bar.setFixedHeight(40)
-        top_bar.setStyleSheet("background: transparent;")
-        top_layout = QHBoxLayout(top_bar)
-        top_layout.setContentsMargins(15, 10, 15, 0)
-        top_layout.setSpacing(0)
-        top_layout.addStretch()
-        
-        # 最小化按钮（黄色）
-        min_btn = QPushButton()
-        min_btn.setFixedSize(12, 12)
-        min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
-        min_btn.clicked.connect(self.showMinimized)
-        top_layout.addWidget(min_btn)
-        top_layout.addSpacing(8)
-        
-        # 最大化按钮（绿色）
-        max_btn = QPushButton()
-        max_btn.setFixedSize(12, 12)
-        max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
-        max_btn.clicked.connect(self.toggle_maximize)
-        top_layout.addWidget(max_btn)
-        top_layout.addSpacing(8)
-        
-        # 关闭按钮（红色）
-        close_btn = QPushButton()
-        close_btn.setFixedSize(12, 12)
-        close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
-        close_btn.clicked.connect(self.close)
-        top_layout.addWidget(close_btn)
-        
-        main_layout.addWidget(top_bar)
+        # 使用视频背景的内容容器
+        if hasattr(self, 'content_container'):
+            main_layout = QVBoxLayout(self.content_container)
+        else:
+            main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 50, 10, 10)
+        main_layout.setSpacing(5)
         
         # 内容区
         layout = QVBoxLayout()
@@ -222,13 +193,35 @@ class AccountDetailDialog(QDialog):
         
         # ========== 账号信息 ==========
         info_layout = QHBoxLayout()
-        info_layout.addWidget(QLabel(f"<b>用户名:</b> {self.account.username}"))
-        info_layout.addWidget(QLabel(f"<b>昵称:</b> {self.account.nickname or '无'}"))
+        
+        # 用户名标签
+        username_label = QLabel(f"<b>用户名:</b> {self.account.username}")
+        username_label.setStyleSheet("color: white; font-size: 14px; background: transparent;")
+        info_layout.addWidget(username_label)
+        
+        # 昵称标签
+        nickname_label = QLabel(f"<b>昵称:</b> {self.account.nickname or '无'}")
+        nickname_label.setStyleSheet("color: white; font-size: 14px; background: transparent;")
+        info_layout.addWidget(nickname_label)
+        
+        # 状态标签
         self.status_label = QLabel(f"<b>状态:</b> {self.account.status}")
+        self.status_label.setStyleSheet("color: #00FF88; font-size: 14px; background: transparent;")
         info_layout.addWidget(self.status_label)
         info_layout.addStretch()
         
         self.login_btn = QPushButton("🔐 登录")
+        self.login_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
         self.login_btn.clicked.connect(self.do_login)
         info_layout.addWidget(self.login_btn)
         
@@ -251,6 +244,18 @@ class AccountDetailDialog(QDialog):
         
         self.refresh_courses_btn = QPushButton("刷新课程")
         self.refresh_courses_btn.setEnabled(False)
+        self.refresh_courses_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                font-size: 12px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #1976D2; }
+            QPushButton:disabled { background-color: #666; }
+        """)
         self.refresh_courses_btn.clicked.connect(self.refresh_courses)
         course_layout.addWidget(self.refresh_courses_btn)
         
@@ -266,9 +271,11 @@ class AccountDetailDialog(QDialog):
         
         # 当前选中课程
         course_info_layout = QHBoxLayout()
-        course_info_layout.addWidget(QLabel("目标课程:"))
+        course_info_label = QLabel("目标课程:")
+        course_info_label.setStyleSheet("color: white; background: transparent;")
+        course_info_layout.addWidget(course_info_label)
         self.current_course_label = QLabel("未选择")
-        self.current_course_label.setStyleSheet("color: #666; font-style: italic;")
+        self.current_course_label.setStyleSheet("color: #aaa; font-style: italic; background: transparent;")
         course_info_layout.addWidget(self.current_course_label)
         course_info_layout.addStretch()
         settings_layout.addLayout(course_info_layout)
@@ -280,7 +287,9 @@ class AccountDetailDialog(QDialog):
         # 全选/取消全选按钮
         select_btn_layout = QHBoxLayout()
         self.select_all_btn = QPushButton("全选")
+        self.select_all_btn.setStyleSheet("QPushButton { background-color: #607D8B; color: white; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; } QPushButton:hover { background-color: #455A64; }")
         self.select_none_btn = QPushButton("取消全选")
+        self.select_none_btn.setStyleSheet("QPushButton { background-color: #607D8B; color: white; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; } QPushButton:hover { background-color: #455A64; }")
         self.select_all_btn.clicked.connect(self.select_all_units)
         self.select_none_btn.clicked.connect(self.select_none_units)
         select_btn_layout.addWidget(self.select_all_btn)
@@ -385,9 +394,33 @@ class AccountDetailDialog(QDialog):
         control_layout = QHBoxLayout()
         self.start_btn = QPushButton("▶️ 开始刷作业")
         self.start_btn.setEnabled(False)
+        self.start_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+            QPushButton:disabled { background-color: #666; }
+        """)
         self.start_btn.clicked.connect(self.start_study)
         self.stop_btn = QPushButton("⏹️ 停止")
         self.stop_btn.setEnabled(False)
+        self.stop_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #e53935; }
+            QPushButton:disabled { background-color: #666; }
+        """)
         self.stop_btn.clicked.connect(self.stop_study)
         control_layout.addWidget(self.start_btn)
         control_layout.addWidget(self.stop_btn)
@@ -396,6 +429,7 @@ class AccountDetailDialog(QDialog):
         # 进度条
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
+        self.progress_bar.setMaximumHeight(20)
         left_layout.addWidget(self.progress_bar)
         
         splitter.addWidget(left_widget)
@@ -479,9 +513,31 @@ class AccountDetailDialog(QDialog):
     def mouseMoveEvent(self, event):
         """鼠标移动事件 - 窗口拖动"""
         if hasattr(self, '_drag_pos') and self._drag_pos and event.buttons() & Qt.MouseButton.LeftButton:
-            if event.y() < 40:
-                self.move(event.globalPos() - self._drag_pos)
-                event.accept()
+            self.move(event.globalPos() - self._drag_pos)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """鼠标释放事件"""
+        self._drag_pos = None
+        super().mouseReleaseEvent(event)
+    
+    def eventFilter(self, obj, event):
+        """事件过滤器 - 让graphics_view传递鼠标事件"""
+        from PyQt5.QtCore import QEvent
+        if obj == self.graphics_view and event.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease]:
+            self.mousePressEvent(event) if event.type() == QEvent.MouseButtonPress else None
+            self.mouseMoveEvent(event) if event.type() == QEvent.MouseMove else None
+            self.mouseReleaseEvent(event) if event.type() == QEvent.MouseButtonRelease else None
+            return True
+        return super().eventFilter(obj, event)
+    
+    def resizeEvent(self, event):
+        """窗口大小改变时更新视频背景"""
+        super().resizeEvent(event)
+        if hasattr(self, 'content_container'):
+            self.content_container.setGeometry(0, 0, self.graphics_view.width(), self.graphics_view.height())
+        if hasattr(self, 'top_bar'):
+            self.top_bar.setGeometry(0, 0, self.width(), 40)
     
     def log(self, message: str):
         """添加日志"""
@@ -1076,25 +1132,11 @@ class AccountDetailDialog(QDialog):
             logger.info(f"刷作业任务完成 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 结果: {msg}")
             
             # 刷作业完成后自动开始刷时长（5秒倒计时）
-            reply_box = QMessageBox(QMessageBox.Information, "刷作业完成",
-                f"刷作业已完成！\n{msg}\n\n5秒后自动开始刷时长...")
-            reply_box.setWindowFlags(reply_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-            ok_btn = reply_box.addButton("立即开始", QMessageBox.AcceptRole)
-            cancel_btn = reply_box.addButton("取消", QMessageBox.RejectRole)
-            reply_box.setDefaultButton(ok_btn)
-            reply_box.show()
-            
-            # 5秒后自动开始
-            from PyQt5.QtCore import QTimer
-            timer = QTimer()
-            timer.setSingleShot(True)
-            timer.timeout.connect(lambda: (reply_box.accept(), self.auto_start_time_study()))
-            timer.start(5000)
-            
-            reply_box.exec_()
-            # 如果用户点了取消，停止定时器
-            if reply_box.clickedButton() == cancel_btn:
-                timer.stop()
+            self.log("刷作业完成，5秒后自动开始刷时长...")
+            self._auto_start_countdown = 5
+            self._auto_start_timer = QTimer()
+            self._auto_start_timer.timeout.connect(self._auto_start_tick)
+            self._auto_start_timer.start(1000)
         else:
             completed_units = result.get('completed_units', 0)
             total_units = len(self.current_units) if self.current_units else 0
@@ -1127,6 +1169,16 @@ class AccountDetailDialog(QDialog):
         msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         msg_box.exec_()
     
+    def _auto_start_tick(self):
+        """自动开始倒计时"""
+        self._auto_start_countdown -= 1
+        if self._auto_start_countdown <= 0:
+            self._auto_start_timer.stop()
+            self.auto_start_time_study()
+        else:
+            self.countdown_label.setText(f"⏱ {self._auto_start_countdown}秒后自动开始刷时长...")
+            self.countdown_label.setVisible(True)
+    
     def auto_start_time_study(self):
         """刷作业完成后自动开始刷时长"""
         from core.logger import get_logger
@@ -1158,17 +1210,13 @@ class AccountDetailDialog(QDialog):
     
     def _auto_start_tick(self):
         """自动开始倒计时"""
-        self._countdown_seconds -= 1
-        if self._countdown_seconds <= 0:
+        self._auto_start_countdown -= 1
+        if self._auto_start_countdown <= 0:
             self._auto_start_timer.stop()
-            self.countdown_label.setVisible(False)
-            self.start_study()
+            self.auto_start_time_study()
         else:
-            self.countdown_label.setText(f"⏱ {self._countdown_seconds}秒后自动开始刷时长...")
-        
-        # 清理线程引用
-        self.study_thread = None
-        logger.debug("任务线程引用已清理")
+            self.countdown_label.setText(f"⏱ {self._auto_start_countdown}秒后自动开始刷时长...")
+            self.countdown_label.setVisible(True)
     
     def closeEvent(self, event):
         """关闭窗口时清理线程"""
@@ -1304,7 +1352,8 @@ class AccountDetailDialog(QDialog):
         import os
         import sys
         from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem, QGraphicsScene, QGraphicsView
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
+        from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView
         from PyQt5.QtCore import QUrl, QSizeF
         
         # 获取应用程序路径
@@ -1318,17 +1367,65 @@ class AccountDetailDialog(QDialog):
         # 创建图形场景和视图作为背景
         self.graphics_scene = QGraphicsScene()
         self.graphics_view = QGraphicsView(self.graphics_scene)
-        self.graphics_view.setStyleSheet("background: transparent; border: none;")
+        self.graphics_view.setStyleSheet("background: black; border: none;")
         self.graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.graphics_view.setGeometry(0, 0, self.width(), self.height())
-        self.graphics_view.lower()
-        self.graphics_view.show()
+        self.graphics_view.viewport().setStyleSheet("background: black;")
+        
+        # 设置对话框背景为黑色
+        self.setStyleSheet("QDialog { background: black; }")
         
         # 创建视频项
         self.video_item = QGraphicsVideoItem()
         self.video_item.setSize(QSizeF(720, 960))
         self.graphics_scene.addItem(self.video_item)
+        
+        # 创建内容容器覆盖在视频上
+        self.content_container = QWidget()
+        self.content_container.setStyleSheet("background: transparent;")
+        self.content_proxy = self.graphics_scene.addWidget(self.content_container)
+        self.content_proxy.setZValue(1)
+        
+        # 设置为主布局
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        main_layout.addWidget(self.graphics_view)
+        
+        # 顶部栏（覆盖在graphics_view上面）
+        self.top_bar = QWidget(self)
+        self.top_bar.setFixedHeight(40)
+        self.top_bar.setGeometry(0, 0, self.width(), 40)
+        self.top_bar.setStyleSheet("background: transparent;")
+        top_layout = QHBoxLayout(self.top_bar)
+        top_layout.setContentsMargins(15, 10, 15, 0)
+        top_layout.setSpacing(0)
+        top_layout.addStretch()
+        
+        # 最小化按钮（黄色）
+        min_btn = QPushButton()
+        min_btn.setFixedSize(12, 12)
+        min_btn.setStyleSheet("QPushButton { background-color: #ffbd2e; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff9500; }")
+        min_btn.clicked.connect(self.showMinimized)
+        top_layout.addWidget(min_btn)
+        top_layout.addSpacing(8)
+        
+        # 最大化按钮（绿色）
+        max_btn = QPushButton()
+        max_btn.setFixedSize(12, 12)
+        max_btn.setStyleSheet("QPushButton { background-color: #27c93f; border: none; border-radius: 6px; } QPushButton:hover { background-color: #28a745; }")
+        max_btn.clicked.connect(self.toggle_maximize)
+        top_layout.addWidget(max_btn)
+        top_layout.addSpacing(8)
+        
+        # 关闭按钮（红色）
+        close_btn = QPushButton()
+        close_btn.setFixedSize(12, 12)
+        close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+        close_btn.clicked.connect(self.close)
+        top_layout.addWidget(close_btn)
+        
+        self.top_bar.raise_()
         
         # 播放视频
         if os.path.exists(video_path):
@@ -1349,11 +1446,18 @@ class AccountDetailDialog(QDialog):
             self.video_player.setPosition(0)
             self.video_player.play()
     
-    def resizeEvent(self, event):
-        # 窗口大小改变时更新视频背景
-        super().resizeEvent(event)
-        if hasattr(self, 'graphics_view'):
-            self.graphics_view.setGeometry(0, 0, self.width(), self.height())
-        if hasattr(self, 'video_item'):
-            self.video_item.setSize(QSizeF(self.width(), self.height()))
-        super().resizeEvent(event)
+    def showEvent(self, event):
+        """对话框显示时自动登录"""
+        super().showEvent(event)
+        
+        # 初始化UI（在视频背景设置后）
+        if not hasattr(self, '_ui_initialized') or not self._ui_initialized:
+            self._ui_initialized = True
+            self.init_ui()
+        
+        # 如果还没有尝试过自动登录，则自动登录
+        if not self.auto_login_attempted and not self.is_logged_in:
+            self.auto_login_attempted = True
+            # 延迟一点时间再执行登录，确保界面完全显示
+            from PyQt5.QtCore import QTimer
+            QTimer.singleShot(500, self.do_login)

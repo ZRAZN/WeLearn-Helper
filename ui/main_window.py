@@ -526,9 +526,9 @@ class WeLearnUI(QMainWindow):
 
     def show_startup_warning(self):
         """显示启动警告"""
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QGraphicsScene, QGraphicsView
         from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem, QGraphicsScene, QGraphicsView
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
         from PyQt5.QtCore import QUrl, QSizeF
         
         # 播放提示音
@@ -558,6 +558,10 @@ class WeLearnUI(QMainWindow):
             dialog.setWindowIcon(QIcon(ico_path))
         
         # 设置视频背景
+        from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
+        from PyQt5.QtCore import QUrl, QSizeF
+        
         graphics_scene = QGraphicsScene()
         graphics_view = QGraphicsView(graphics_scene)
         graphics_view.setStyleSheet("background: transparent; border: none;")
@@ -577,8 +581,9 @@ class WeLearnUI(QMainWindow):
                 video_player.setVideoOutput(video_item)
                 video_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_path)))
                 video_player.setVolume(0)
+                video_player.mediaStatusChanged.connect(lambda s: (video_player.setPosition(0), video_player.play()) if s == QMediaPlayer.MediaStatus.EndOfMedia else None)
                 video_player.play()
-                dialog._video_player = video_player  # 保持引用
+                dialog._video_player = video_player
             except Exception as e:
                 print(f"设置视频背景失败: {e}")
         
@@ -651,6 +656,10 @@ class WeLearnUI(QMainWindow):
         """显示更新公告"""
         # 检查是否已经选择不再提醒
         from PyQt5.QtCore import QSettings
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QCheckBox, QHBoxLayout, QGraphicsScene, QGraphicsView
+        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
+        from PyQt5.QtCore import QUrl, QSizeF
         import os
         import uuid
         import sys
@@ -728,7 +737,8 @@ class WeLearnUI(QMainWindow):
         
         # 设置视频背景
         from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem, QGraphicsScene, QGraphicsView
+        from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView
+        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
         from PyQt5.QtCore import QUrl, QSizeF
         
         graphics_scene = QGraphicsScene()
@@ -977,7 +987,7 @@ class WeLearnUI(QMainWindow):
         # 设置复选框样式
         checkbox.setStyleSheet("""
             QCheckBox {
-                background-color: rgba(255, 255, 255, 220);
+                background: transparent;
                 font-size: 12px;
                 padding: 5px;
             }

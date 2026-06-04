@@ -1,0 +1,78 @@
+{
+  "刷作业_2876_10934875_1780574597": {
+    "task_type": "刷作业",
+    "cid": 2876,
+    "uid": "10934875",
+    "classid": "633751",
+    "unit_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "current_units": [
+      {
+        "id": "7-ITEM-d1463ed6-a2d3-48fa-b003-46815f59d143",
+        "name": "B2U1 Spread Your Ideas",
+        "unitname": "Unit 01",
+        "visible": "true"
+      },
+      {
+        "id": "49-ITEM-db392b7c-3a33-4f61-976c-e58604629511",
+        "name": "B2U2 The Magic of Love",
+        "unitname": "Unit 02",
+        "visible": "true"
+      },
+      {
+        "id": "87-ITEM-e5287fd2-f03d-4be0-92bd-2ab91f33768e",
+        "name": "B2U3 Be Smart with Your Smartphone",
+        "unitname": "Unit 03",
+        "visible": "true"
+      },
+      {
+        "id": "127-ITEM-b1c5b849-3b25-4a5f-b3b5-35a60bb5111c",
+        "name": "B2U4 Space Odyssey",
+        "unitname": "Unit 04",
+        "visible": "true"
+      },
+      {
+        "id": "169-ITEM-b9ce7694-7b10-4308-95b9-1ef3f0f8fc34",
+        "name": "B2U5 Building Strength",
+        "unitname": "Unit 05",
+        "visible": "true"
+      },
+      {
+        "id": "210-ITEM-ad0f2461-b1e0-4eaf-afe2-02899e48f057",
+        "name": "B2U6 Humans and Nature",
+        "unitname": "Unit 06",
+        "visible": "true"
+      },
+      {
+        "id": "249-ITEM-2fbbeaa8-c4c8-414f-a468-6d34600ad953",
+        "name": "B2U7 Starting a Business",
+        "unitname": "Unit 07",
+        "visible": "true"
+      },
+      {
+        "id": "295-ITEM-cd78f474-8830-46de-9fec-c778849225da",
+        "name": "B2U8 The Truth about Smiles",
+        "unitname": "Unit 08",
+        "visible": "true"
+      }
+    ],
+    "completed_units": [],
+    "completed_courses": {},
+    "task_config": {
+      "cid": 2876,
+      "accuracy": 100,
+      "concurrent": 20,
+      "course_name": "新时代大学应用英语：综合教程2"
+    },
+    "last_update_time": 1780574597.8332987,
+    "status": "paused"
+  }
+}
