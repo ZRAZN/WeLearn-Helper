@@ -531,10 +531,8 @@ class WeLearnUI(QMainWindow):
 
     def show_startup_warning(self):
         """显示启动警告"""
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QGraphicsScene, QGraphicsView
-        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
-        from PyQt5.QtCore import QUrl, QSizeF
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QScrollArea
+        from ui.video_background import setup_video_background
         
         # 播放提示音
         import winsound
@@ -543,69 +541,61 @@ class WeLearnUI(QMainWindow):
         except:
             pass
         
-        # 获取应用路径
-        if getattr(sys, 'frozen', False):
-            app_path = os.path.dirname(sys.executable)
-        else:
-            app_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
-        video_path = os.path.join(app_path, 'UI B2.mp4')
-        if not os.path.exists(video_path):
-            internal_path = os.path.join(app_path, '_internal')
-            if os.path.exists(os.path.join(internal_path, 'UI B2.mp4')):
-                video_path = os.path.join(internal_path, 'UI B2.mp4')
-        
         # 创建对话框
         dialog = QDialog()
         dialog.setWindowTitle("使用声明")
-        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        dialog.resize(540, 720)  # 3:4 比例
-        
-        # 设置图标
-        ico_path = os.path.join(app_path, 'ZR.ico')
-        if os.path.exists(ico_path):
-            dialog.setWindowIcon(QIcon(ico_path))
+        dialog.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
+        dialog.resize(450, 600)  # 3:4 比例
         
         # 设置视频背景
-        from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView
-        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
-        from PyQt5.QtCore import QUrl, QSizeF
-        
-        graphics_scene = QGraphicsScene()
-        graphics_view = QGraphicsView(graphics_scene)
-        graphics_view.setStyleSheet("background: transparent; border: none;")
-        graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        graphics_view.setGeometry(0, 0, 540, 720)
-        graphics_view.setParent(dialog)
-        graphics_view.lower()
-        
-        video_item = QGraphicsVideoItem()
-        video_item.setSize(QSizeF(540, 720))
-        graphics_scene.addItem(video_item)
-        
-        if os.path.exists(video_path):
-            try:
-                video_player = QMediaPlayer()
-                video_player.setVideoOutput(video_item)
-                video_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_path)))
-                video_player.setVolume(0)
-                video_player.mediaStatusChanged.connect(lambda s: (video_player.setPosition(0), video_player.play()) if s == QMediaPlayer.MediaStatus.EndOfMedia else None)
-                video_player.play()
-                dialog._video_player = video_player
-            except Exception as e:
-                print(f"设置视频背景失败: {e}")
-        
-        # 主布局
-        main_layout = QVBoxLayout(dialog)
-        main_layout.setContentsMargins(30, 30, 30, 30)
-        main_layout.setSpacing(15)
+        result = setup_video_background(dialog, 'UI B2.mp4', 450, 600)
+        if result:
+            graphics_view, content_container, video_player = result
+            main_layout = QVBoxLayout(dialog)
+            main_layout.setContentsMargins(0, 0, 0, 0)
+            main_layout.setSpacing(0)
+            main_layout.addWidget(graphics_view)
+            
+            # 顶部栏
+            top_bar = QWidget(dialog)
+            top_bar.setFixedHeight(40)
+            top_bar.setGeometry(0, 0, 450, 40)
+            top_bar.setStyleSheet("background: transparent;")
+            top_layout = QHBoxLayout(top_bar)
+            top_layout.setContentsMargins(15, 10, 15, 0)
+            top_layout.addStretch()
+            
+            close_btn = QPushButton()
+            close_btn.setFixedSize(12, 12)
+            close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+            close_btn.clicked.connect(dialog.close)
+            top_layout.addWidget(close_btn)
+            top_bar.raise_()
+            
+            # 内容区
+            content_widget = QScrollArea(dialog)
+            content_widget.setStyleSheet("background: transparent; border: none;")
+            content_widget.setGeometry(0, 40, 450, 560)
+            content_widget.setWidgetResizable(True)
+            content_widget.raise_()
+            content_widget.show()
+            
+            inner_widget = QWidget()
+            inner_widget.setStyleSheet("background: transparent;")
+            content_widget.setWidget(inner_widget)
+            content_layout = QVBoxLayout(inner_widget)
+            content_layout.setContentsMargins(30, 20, 30, 20)
+            content_layout.setSpacing(15)
+        else:
+            content_layout = QVBoxLayout(dialog)
+            content_layout.setContentsMargins(30, 30, 30, 30)
+            content_layout.setSpacing(15)
         
         # 标题
         title_label = QLabel("使用声明")
-        title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #333; background: transparent;")
+        title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: white; background: transparent;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(title_label)
+        content_layout.addWidget(title_label)
         
         # 内容
         warning_text = QTextEdit()
@@ -630,7 +620,7 @@ class WeLearnUI(QMainWindow):
         </ol>
         <p><b>感谢您的理解与支持！</b></p>
         """)
-        main_layout.addWidget(warning_text)
+        content_layout.addWidget(warning_text)
         
         # 按钮
         ok_button = QPushButton("我已了解")
@@ -647,7 +637,7 @@ class WeLearnUI(QMainWindow):
         """)
         ok_button.setDefault(True)
         ok_button.clicked.connect(dialog.accept)
-        main_layout.addWidget(ok_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        content_layout.addWidget(ok_button, alignment=Qt.AlignmentFlag.AlignCenter)
         
         # 居中显示
         dialog.setGeometry(
@@ -724,76 +714,70 @@ class WeLearnUI(QMainWindow):
         except:
             pass
         
-        # 获取应用路径
-        if getattr(sys, 'frozen', False):
-            app_path = os.path.dirname(sys.executable)
-        else:
-            app_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
-        video_path = os.path.join(app_path, 'UI B2.mp4')
-        if not os.path.exists(video_path):
-            internal_path = os.path.join(app_path, '_internal')
-            if os.path.exists(os.path.join(internal_path, 'UI B2.mp4')):
-                video_path = os.path.join(internal_path, 'UI B2.mp4')
-        
         # 创建对话框
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QCheckBox, QHBoxLayout, QScrollArea
         dialog = QDialog()
         dialog.setWindowTitle("更新公告")
-        dialog.setMinimumSize(540, 720)
-        dialog.resize(540, 720)  # 3:4 比例
-        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        
-        # 设置窗口图标
-        ico_path = os.path.join(app_path, 'ZR.ico')
-        if os.path.exists(ico_path):
-            dialog.setWindowIcon(QIcon(ico_path))
+        dialog.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
+        dialog.resize(450, 600)  # 3:4 比例
         
         # 设置视频背景
-        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-        from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView
-        from PyQt5.QtMultimediaWidgets import QGraphicsVideoItem
-        from PyQt5.QtCore import QUrl, QSizeF
-        
-        graphics_scene = QGraphicsScene()
-        graphics_view = QGraphicsView(graphics_scene)
-        graphics_view.setStyleSheet("background: transparent; border: none;")
-        graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        graphics_view.setGeometry(0, 0, 540, 720)
-        graphics_view.setParent(dialog)
-        graphics_view.lower()
-        
-        video_item = QGraphicsVideoItem()
-        video_item.setSize(QSizeF(540, 720))
-        graphics_scene.addItem(video_item)
-        
-        if os.path.exists(video_path):
-            try:
-                video_player = QMediaPlayer()
-                video_player.setVideoOutput(video_item)
-                video_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_path)))
-                video_player.setVolume(0)
-                video_player.mediaStatusChanged.connect(lambda s: (video_player.setPosition(0), video_player.play()) if s == QMediaPlayer.MediaStatus.EndOfMedia else None)
-                video_player.play()
-                dialog._video_player = video_player
-            except Exception as e:
-                print(f"设置视频背景失败: {e}")
+        from ui.video_background import setup_video_background
+        result = setup_video_background(dialog, 'UI B2.mp4', 450, 600)
+        if result:
+            graphics_view, content_container, video_player = result
+            main_layout = QVBoxLayout(dialog)
+            main_layout.setContentsMargins(0, 0, 0, 0)
+            main_layout.setSpacing(0)
+            main_layout.addWidget(graphics_view)
+            
+            # 顶部栏
+            top_bar = QWidget(dialog)
+            top_bar.setFixedHeight(40)
+            top_bar.setGeometry(0, 0, 450, 40)
+            top_bar.setStyleSheet("background: transparent;")
+            top_layout = QHBoxLayout(top_bar)
+            top_layout.setContentsMargins(15, 10, 15, 0)
+            top_layout.addStretch()
+            
+            close_btn = QPushButton()
+            close_btn.setFixedSize(12, 12)
+            close_btn.setStyleSheet("QPushButton { background-color: #ff5f56; border: none; border-radius: 6px; } QPushButton:hover { background-color: #ff3b30; }")
+            close_btn.clicked.connect(dialog.close)
+            top_layout.addWidget(close_btn)
+            top_bar.raise_()
+            
+            # 内容区
+            content_widget = QScrollArea(dialog)
+            content_widget.setStyleSheet("background: transparent; border: none;")
+            content_widget.setGeometry(0, 40, 450, 560)
+            content_widget.setWidgetResizable(True)
+            content_widget.raise_()
+            content_widget.show()
+            
+            inner_widget = QWidget()
+            inner_widget.setStyleSheet("background: transparent;")
+            content_widget.setWidget(inner_widget)
+            content_layout = QVBoxLayout(inner_widget)
+            content_layout.setContentsMargins(20, 15, 20, 15)
+            content_layout.setSpacing(10)
         else:
-            dialog.setWindowIcon(self.windowIcon())
-        
-        # 设置背景图片 - 使用更可靠的方法
-        background_path = self.get_background_path()
-        print(f"获取到的背景图片路径: {background_path}")
-        
-        # 创建主布局
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
+            content_layout = QVBoxLayout(dialog)
+            content_layout.setContentsMargins(20, 20, 20, 20)
+            content_layout.setSpacing(10)
         
         # 创建文本编辑区域用于显示公告
         announcement_text = QTextEdit()
         announcement_text.setReadOnly(True)
-        announcement_text.setMinimumHeight(350)  # 设置最小高度
+        announcement_text.setMinimumHeight(350)
+        announcement_text.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(255, 255, 255, 220);
+                padding: 10px;
+                border-radius: 5px;
+                border: 1px solid #ccc;
+            }
+        """)
         
         announcement_content = f"WeLearn学习助手 {self.version}\n\n"
 
@@ -953,36 +937,21 @@ class WeLearnUI(QMainWindow):
         
         # 创建复选框
         checkbox = QCheckBox("不再提醒")
+        checkbox.setStyleSheet("""
+            QCheckBox {
+                background: transparent;
+                font-size: 12px;
+                padding: 5px;
+                color: white;
+            }
+        """)
         
         # 创建按钮布局
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         ok_button = QPushButton("确定")
         ok_button.setDefault(True)
-        ok_button.setMinimumWidth(80)  # 设置最小宽度
-        button_layout.addWidget(ok_button)
-        
-        # 添加控件到主布局
-        main_layout.addWidget(announcement_text)
-        main_layout.addWidget(checkbox)
-        main_layout.addLayout(button_layout)
-        
-        dialog.setLayout(main_layout)
-        
-        # 设置样式 - 使用透明背景
-        dialog.setStyleSheet("QDialog { background: transparent; }")
-        
-        # 设置文本编辑框样式
-        announcement_text.setStyleSheet("""
-            QTextEdit {
-                background-color: rgba(255, 255, 255, 220);
-                padding: 10px;
-                border-radius: 5px;
-                border: 1px solid #ccc;
-            }
-        """)
-        
-        # 设置按钮样式
+        ok_button.setMinimumWidth(80)
         ok_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
@@ -992,19 +961,17 @@ class WeLearnUI(QMainWindow):
                 font-size: 13px;
                 border-radius: 4px;
             }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
+            QPushButton:hover { background-color: #45a049; }
         """)
+        button_layout.addWidget(ok_button)
         
-        # 设置复选框样式
-        checkbox.setStyleSheet("""
-            QCheckBox {
-                background: transparent;
-                font-size: 12px;
-                padding: 5px;
-            }
-        """)
+        # 添加控件到主布局
+        content_layout.addWidget(announcement_text)
+        content_layout.addWidget(checkbox)
+        content_layout.addLayout(button_layout)
+        
+        # 连接按钮点击事件
+        ok_button.clicked.connect(dialog.accept)
         
         # 居中显示对话框
         dialog.setGeometry(
@@ -1018,6 +985,16 @@ class WeLearnUI(QMainWindow):
         
         # 连接按钮点击事件
         ok_button.clicked.connect(dialog.accept)
+        
+        # 居中显示对话框
+        dialog.setGeometry(
+            QStyle.alignedRect(
+                Qt.LeftToRight,
+                Qt.AlignCenter,
+                dialog.size(),
+                QApplication.desktop().availableGeometry()
+            )
+        )
         
         # 显示对话框
         dialog.exec_()
