@@ -70,17 +70,25 @@ class StudyThread(QThread):
         self.current_units = current_units
         self.max_concurrent = max_concurrent  # 最大并发数
         self._stop_flag = False
+        self._pause_flag = False
 
 
 
     def process_single_course(self, course):
         """处理单个课程的作业"""
         from core.logger import get_logger
+        import time
         logger = get_logger("StudyThread")
         
         if self._stop_flag:
             logger.debug("检测到停止标志，跳过课程")
             return 0, 0, 0, 0  # way1_succeed, way1_failed, way2_succeed, way2_failed
+        
+        # 暂停等待
+        while self._pause_flag:
+            time.sleep(0.5)
+            if self._stop_flag:
+                return 0, 0, 0, 0
         
         course_location = course.get("location", "未知课程")
         is_visible = course.get("isvisible") != "false"
@@ -290,6 +298,14 @@ class StudyThread(QThread):
         if self.isRunning():
             logger.info("尝试立即终止刷作业线程")
             self.terminate()
+    
+    def pause(self):
+        """暂停学习"""
+        self._pause_flag = True
+    
+    def resume(self):
+        """继续学习"""
+        self._pause_flag = False
 
 
 class TimeStudyThread(QThread):
@@ -313,6 +329,7 @@ class TimeStudyThread(QThread):
         self.current_units = current_units
         self.max_concurrent = max_concurrent
         self._stop_flag = False
+        self._pause_flag = False
         
         # 进度跟踪
         self.completed_units = []
@@ -343,11 +360,18 @@ class TimeStudyThread(QThread):
     def study_single_course(self, course_data):
         """处理单个课程"""
         from core.logger import get_logger
+        import time
         logger = get_logger("TimeStudyThread")
         
         if self._stop_flag:
             logger.debug("检测到停止标志，跳过课程")
             return False, None
+        
+        # 暂停等待
+        while self._pause_flag:
+            time.sleep(0.5)
+            if self._stop_flag:
+                return False, None
         
         unit_index, chapter = course_data
         course_id = chapter["id"]
@@ -609,4 +633,12 @@ class TimeStudyThread(QThread):
         if self.isRunning():
             logger.info("尝试立即终止刷时长线程")
             self.terminate()
+    
+    def pause(self):
+        """暂停刷时长"""
+        self._pause_flag = True
+    
+    def resume(self):
+        """继续刷时长"""
+        self._pause_flag = False
 

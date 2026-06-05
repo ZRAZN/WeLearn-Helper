@@ -10,8 +10,8 @@ from PyQt5.QtWidgets import (
     QMenuBar, QMenu, QAction, QMessageBox, QStatusBar, QSystemTrayIcon, 
     QApplication, QStyle
 )
-from ui.jelly_button import JellyButton
 from PyQt5.QtGui import QIcon, QBitmap, QPixmap, QPainter, QBrush
+from ui.jelly_qml_button import JellyQmlButton as JellyButton
 
 # 使用标准绝对导入
 from ui import account_view
@@ -33,14 +33,14 @@ class WeLearnUI(QMainWindow):
         self.detail_dialogs = {}  # 存储打开的详情对话框
         self.tray_icon = None     # 系统托盘图标
         self.tray_reminder_timer = None  # 托盘提醒定时器
-        self.version = "V5.0.12"     # 软件版本号
+        self.version = "V6.0.0"     # 软件版本号
         self.init_ui()
         self.init_tray()  # 初始化系统托盘
+        self._dialogs = []  # 保存弹窗引用，防止被垃圾回收
         
         # 延迟显示弹窗，确保主窗口先显示
         QTimer.singleShot(500, self.show_startup_warning)  # 显示启动警告
-        QTimer.singleShot(600, self.show_update_announcement)  # 显示更新公告
-        QTimer.singleShot(1500, self.check_incomplete_tasks)  # 检查未完成任务
+        QTimer.singleShot(1500, self.show_update_announcement)  # 显示更新公告
 
     
     def center_window(self):
@@ -57,7 +57,7 @@ class WeLearnUI(QMainWindow):
         QTimer.singleShot(100, self.center_window)
     
     def init_ui(self):
-        self.setWindowTitle("ZR | WeLearn学习助手 V5.0.12    致力于把大学生的时间还给大学生")
+        self.setWindowTitle("ZR | WeLearn学习助手 V6.0.0    致力于把大学生的时间还给大学生")
         # 按视频分辨率等比例缩小
         self.setGeometry(100, 100, 1520, 855)
         self.setMinimumSize(1280, 720)
@@ -199,14 +199,14 @@ class WeLearnUI(QMainWindow):
         
         # 网络工具箱按钮
         self.network_fix_btn = JellyButton("🔧 网络工具箱")
-        self.network_fix_btn.set_jelly_style("#2196F3", "#1976D2", "#1565C0")
+        self.network_fix_btn.set_color("#2196F3")
         self.network_fix_btn.setMinimumHeight(48)
         self.network_fix_btn.clicked.connect(self.open_network_fix)
         bottom_layout.addWidget(self.network_fix_btn)
         
         # 打赏按钮
         self.donate_btn = JellyButton("❤️ 打赏")
-        self.donate_btn.set_jelly_style("#E91E63", "#C2185B", "#AD1457")
+        self.donate_btn.set_color("#E91E63")
         self.donate_btn.setMinimumHeight(48)
         self.donate_btn.clicked.connect(self.show_donate)
         bottom_layout.addWidget(self.donate_btn)
@@ -303,7 +303,7 @@ class WeLearnUI(QMainWindow):
         import base64
         from io import BytesIO
         
-        dialog = QDialog(self)
+        dialog = QDialog()
         dialog.setWindowTitle("感谢支持")
         dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         
@@ -341,7 +341,7 @@ class WeLearnUI(QMainWindow):
         
         # 关闭按钮
         close_btn = JellyButton("关闭")
-        close_btn.set_jelly_style("#4CAF50", "#43A047", "#2E7D32")
+        close_btn.set_color("#4CAF50")
         close_btn.clicked.connect(dialog.close)
         layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         
@@ -379,35 +379,10 @@ class WeLearnUI(QMainWindow):
             del self.detail_dialogs[username]
         self.account_view.refresh_table()
     
-    def check_incomplete_tasks(self):
-        """检查是否有未完成的任务"""
-        from core.task_progress import TaskProgress
-        task_progress = TaskProgress()
-        incomplete_tasks = task_progress.get_incomplete_tasks()
-        
-        if incomplete_tasks:
-            task_list = "\n".join([f"- {t.get('task_type', '未知')}: {t.get('task_config', {}).get('course_name', '未知课程')}" for t in incomplete_tasks])
-            msg_box = QMessageBox(QMessageBox.Question, "未完成任务", 
-                f"检测到 {len(incomplete_tasks)} 个未完成的任务：\n{task_list}\n\n是否继续这些任务？")
-            msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
-            msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-            
-            if msg_box.exec_() == QMessageBox.StandardButton.Yes:
-                for task in incomplete_tasks:
-                    uid = task.get('uid', '')
-                    for acc in self.account_view.account_manager.get_all_accounts():
-                        if acc.username == uid:
-                            self.open_account_detail(acc)
-                            break
-            else:
-                for task in incomplete_tasks:
-                    task_progress.clear_task_progress(task.get('task_id', ''))
-                self.status_bar.showMessage("已清除未完成任务记录")
     
     def show_about(self):
         """显示关于对话框"""
-        msg_box = QMessageBox(self)
+        msg_box = QMessageBox()
         msg_box.setWindowTitle("关于 WeLearn 自动学习工具")
         msg_box.setIcon(QMessageBox.Information)
         # 移除问号帮助按钮
@@ -547,10 +522,25 @@ class WeLearnUI(QMainWindow):
         dialog.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         dialog.resize(450, 600)  # 3:4 比例
         
+        # 添加拖动支持
+        dialog._drag_pos = None
+        def dlg_mouse_press(event):
+            if event.button() == Qt.MouseButton.LeftButton:
+                dialog._drag_pos = event.globalPos() - dialog.frameGeometry().topLeft()
+        def dlg_mouse_move(event):
+            if dialog._drag_pos and event.buttons() & Qt.MouseButton.LeftButton:
+                dialog.move(event.globalPos() - dialog._drag_pos)
+        def dlg_mouse_release(event):
+            dialog._drag_pos = None
+        dialog.mousePressEvent = dlg_mouse_press
+        dialog.mouseMoveEvent = dlg_mouse_move
+        dialog.mouseReleaseEvent = dlg_mouse_release
+        
         # 设置视频背景
         result = setup_video_background(dialog, 'UI B2.mp4', 450, 600)
         if result:
             graphics_view, content_container, video_player = result
+            dialog._video_player = video_player  # 保持引用
             main_layout = QVBoxLayout(dialog)
             main_layout.setContentsMargins(0, 0, 0, 0)
             main_layout.setSpacing(0)
@@ -610,7 +600,7 @@ class WeLearnUI(QMainWindow):
             }
         """)
         warning_text.setHtml("""
-        <p><b>WeLearn学习助手V5.0.12版本</b>，由ZR修改并打包。</p>
+        <p><b>WeLearn学习助手V6.0.0版本</b>，由ZR修改并打包。</p>
         <p><b>使用条款：</b></p>
         <ol>
         <li>本软件仅供学习交流使用，严禁用于任何商业用途</li>
@@ -623,33 +613,15 @@ class WeLearnUI(QMainWindow):
         content_layout.addWidget(warning_text)
         
         # 按钮
-        ok_button = QPushButton("我已了解")
-        ok_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                font-size: 15px;
-                border-radius: 6px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-        """)
-        ok_button.setDefault(True)
+        ok_button = JellyButton("我已了解", "#4CAF50")
         ok_button.clicked.connect(dialog.accept)
         content_layout.addWidget(ok_button, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        # 居中显示
-        dialog.setGeometry(
-            QStyle.alignedRect(
-                Qt.LeftToRight,
-                Qt.AlignCenter,
-                dialog.size(),
-                QApplication.desktop().availableGeometry()
-            )
-        )
-        
-        dialog.exec_()
+        # 保存引用并显示
+        self._dialogs.append(dialog)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
     
     def show_update_announcement(self):
         """显示更新公告"""
@@ -684,7 +656,7 @@ class WeLearnUI(QMainWindow):
         dont_show = settings.value("General/dont_show_update_announcement", False, type=bool)
         announcement_shown = settings.value("General/announcement_shown", False, type=bool)
         last_version = settings.value("General/last_version", "", type=str)
-        current_version = "V5.0.12"  # 更新当前版本号
+        current_version = "V6.0.0"  # 更新当前版本号
         
         print(f"更新公告设置: 不再提醒={dont_show}")
         print(f"公告已显示={announcement_shown}")
@@ -721,11 +693,26 @@ class WeLearnUI(QMainWindow):
         dialog.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         dialog.resize(450, 600)  # 3:4 比例
         
+        # 添加拖动支持
+        dialog._drag_pos = None
+        def dlg_mouse_press(event):
+            if event.button() == Qt.MouseButton.LeftButton:
+                dialog._drag_pos = event.globalPos() - dialog.frameGeometry().topLeft()
+        def dlg_mouse_move(event):
+            if dialog._drag_pos and event.buttons() & Qt.MouseButton.LeftButton:
+                dialog.move(event.globalPos() - dialog._drag_pos)
+        def dlg_mouse_release(event):
+            dialog._drag_pos = None
+        dialog.mousePressEvent = dlg_mouse_press
+        dialog.mouseMoveEvent = dlg_mouse_move
+        dialog.mouseReleaseEvent = dlg_mouse_release
+        
         # 设置视频背景
         from ui.video_background import setup_video_background
         result = setup_video_background(dialog, 'UI B2.mp4', 450, 600)
         if result:
             graphics_view, content_container, video_player = result
+            dialog._video_player = video_player  # 保持引用
             main_layout = QVBoxLayout(dialog)
             main_layout.setContentsMargins(0, 0, 0, 0)
             main_layout.setSpacing(0)
@@ -783,17 +770,13 @@ class WeLearnUI(QMainWindow):
 
         
         # 最新更新公告
-        announcement_content += "V5.0.12\n"
-        announcement_content += "-添加网络诊断与修复工具箱\n"
-        announcement_content += "-文件夹模式打包，启动速度更快\n"
-        announcement_content += "-默认管理员权限启动\n"
-        announcement_content += "-增加网络超时时间和自动重试\n"
-        announcement_content += "-添加重复账号检测，支持覆盖更新\n"
-        announcement_content += "-添加倒计时功能\n"
-        announcement_content += "-关闭窗口时保存任务进度\n"
-        announcement_content += "-打开详情页时自动检查并继续未完成任务\n"
-        announcement_content += "-修复声明窗口重复提示音\n"
-        announcement_content += "-重复账号自动高亮选中\n\n"
+        announcement_content += "V6.0.0\n"
+        announcement_content += "-声明和公告窗口改为无边框视频背景\n"
+        announcement_content += "-添加QML果冻按钮效果\n"
+        announcement_content += "-添加刷时长暂停/继续功能\n"
+        announcement_content += "-删除任务进度保存功能\n"
+        announcement_content += "-弹窗改为独立非模态窗口\n"
+        announcement_content += "-所有窗口支持拖动\n"
         
         announcement_content += "V5.0.11\n"
         announcement_content += "-优化倒计时计算，添加分隔线，更新公告，修复警告页面任务栏图标\n"
@@ -949,30 +932,15 @@ class WeLearnUI(QMainWindow):
         # 创建按钮布局
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        ok_button = QPushButton("确定")
-        ok_button.setDefault(True)
-        ok_button.setMinimumWidth(80)
-        ok_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                font-size: 13px;
-                border-radius: 4px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-        """)
+        ok_button = JellyButton("确定", "#4CAF50")
+        ok_button.clicked.connect(dialog.accept)
         button_layout.addWidget(ok_button)
         
-        # 添加控件到主布局
+        # 添加控件到内容布局
         content_layout.addWidget(announcement_text)
         content_layout.addWidget(checkbox)
         content_layout.addLayout(button_layout)
         
-        # 连接按钮点击事件
-        ok_button.clicked.connect(dialog.accept)
-        
         # 居中显示对话框
         dialog.setGeometry(
             QStyle.alignedRect(
@@ -996,51 +964,21 @@ class WeLearnUI(QMainWindow):
             )
         )
         
-        # 显示对话框
-        dialog.exec_()
+        # 保存引用并显示
+        self._dialogs.append(dialog)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
         
-        # 处理用户选择
-        if checkbox.isChecked():
-            print("用户选择不再显示更新公告")
-            settings.setValue("General/dont_show_update_announcement", True)
-            # 标记公告已显示并更新版本号
+        # 保存设置的定时器
+        def save_settings():
+            if checkbox.isChecked():
+                settings.setValue("General/dont_show_update_announcement", True)
             settings.setValue("General/announcement_shown", True)
             settings.setValue("General/last_version", current_version)
             settings.sync()
-            
-            # 验证设置是否保存成功
-            dont_show_verify = settings.value("General/dont_show_update_announcement", False, type=bool)
-            announcement_shown_verify = settings.value("General/announcement_shown", False, type=bool)
-            print(f"验证设置保存: 不再提醒={dont_show_verify}, 公告已显示={announcement_shown_verify}")
-            print(f"设置文件路径: {settings_file}")
-            
-            # 检查设置文件是否存在
-            if os.path.exists(settings_file):
-                print("设置文件存在")
-                with open(settings_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    print(f"设置文件内容:\n{content}")
-            else:
-                print("警告: 设置文件不存在")
-        else:
-            print("用户未勾选不再提醒")
-            # 即使用户未勾选"不再提醒"，也标记公告已显示并更新版本号
-            settings.setValue("General/announcement_shown", True)
-            settings.setValue("General/last_version", current_version)
-            settings.sync()
-            
-            # 验证设置是否保存成功
-            announcement_shown_verify = settings.value("General/announcement_shown", False, type=bool)
-            print(f"验证设置保存: 公告已显示={announcement_shown_verify}")
-            print(f"设置文件路径: {settings_file}")
-            
-            # 检查设置文件是否存在
-            if os.path.exists(settings_file):
-                print("设置文件存在")
-            else:
-                print("警告: 设置文件不存在")
-    
-
+        
+        ok_button.clicked.connect(save_settings)
     
     def closeEvent(self, event):
         """关闭窗口时的处理"""

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: transparent;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: "Microsoft YaHei", sans-serif;
+}
+
+.jelly-btn {
+    position: relative;
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: bold;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    outline: none;
+    overflow: hidden;
+    
+    /* 半透明毛玻璃 */
+    background: rgba(76, 175, 80, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    
+    /* 阴影 */
+    box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    
+    /* 动画 */
+    transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.1s ease;
+    
+    /* 顶部弧面高光 */
+    background-image: 
+        linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(76, 175, 80, 0.65) 0%, rgba(56, 142, 60, 0.65) 100%);
+}
+
+/* 顶部高光层 */
+.jelly-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 5%;
+    right: 5%;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 100%);
+    border-radius: 12px 12px 50% 50%;
+    pointer-events: none;
+}
+
+/* 悬停 - 微微放大 */
+.jelly-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 
+        0 6px 24px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* 按压 - 果冻形变 */
+.jelly-btn:active {
+    transform: scaleX(1.12) scaleY(0.88);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.15),
+        inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.05s ease;
+}
+
+/* 弹性回弹动画 */
+@keyframes jellyBounce {
+    0% { transform: scaleX(1.12) scaleY(0.88); }
+    30% { transform: scaleX(0.95) scaleY(1.05); }
+    50% { transform: scaleX(1.03) scaleY(0.97); }
+    70% { transform: scaleX(0.99) scaleY(1.01); }
+    100% { transform: scaleX(1) scaleY(1); }
+}
+
+.jelly-btn.bounce {
+    animation: jellyBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 不同颜色主题 */
+.jelly-btn.red {
+    background-image: 
+        linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(244, 67, 54, 0.65) 0%, rgba(198, 40, 40, 0.65) 100%);
+}
+
+.jelly-btn.blue {
+    background-image: 
+        linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(33, 150, 243, 0.65) 0%, (21, 101, 192, 0.65) 100%);
+}
+
+.jelly-btn.orange {
+    background-image: 
+        linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(255, 152, 0, 0.65) 0%, rgba(230, 126, 34, 0.65) 100%);
+}
+
+.jelly-btn.purple {
+    background-image: 
+        linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(156, 39, 176, 0.65) 0%, rgba(106, 27, 154, 0.65) 100%);
+}
+</style>
+</head>
+<body>
+<button class="jelly-btn" id="mainBtn" onclick="handleClick()">开始任务</button>
+
+<script>
+const btn = document.getElementById('mainBtn');
+
+// 按压释放后添加弹性动画
+btn.addEventListener('mousedown', () => {
+    btn.classList.remove('bounce');
+});
+
+btn.addEventListener('mouseup', () => {
+    btn.classList.remove('bounce');
+    void btn.offsetWidth; // 重置动画
+    btn.classList.add('bounce');
+});
+
+btn.addEventListener('animationend', () => {
+    btn.classList.remove('bounce');
+});
+
+// 点击回调Python
+function handleClick() {
+    if (window.pywebview) {
+        window.pywebview.api.on_button_click(btn.textContent);
+    } else if (window._qt_callback) {
+        window._qt_callback(btn.textContent);
+    }
+}
+
+// 外部调用：设置按钮文字
+function setText(text) {
+    btn.textContent = text;
+}
+
+// 外部调用：设置按钮颜色
+function setColor(color) {
+    btn.className = 'jelly-btn ' + color;
+}
+
+// 外部调用：设置按钮启用/禁用
+function setEnabled(enabled) {
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.5';
+}
+</script>
+</body>
+</html>

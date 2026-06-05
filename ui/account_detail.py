@@ -15,6 +15,7 @@ from PyQt5.QtMultimedia import QSound
 from core.api import WeLearnClient
 from core.account_manager import Account
 from ui import workers
+from ui.jelly_qml_button import JellyQmlButton as JellyButton
 LoginThread = workers.LoginThread
 CourseThread = workers.CourseThread
 UnitsThread = workers.UnitsThread
@@ -50,11 +51,6 @@ class AccountDetailDialog(QDialog):
         self.units_thread = None
         self.study_thread = None  # 刷作业/刷时长通用
         
-        # 任务进度管理
-        from core.task_progress import TaskProgress
-        self.task_progress = TaskProgress()
-        self.current_task_id = None
-        
 
         
         self.setup_video_background()  # 先设置视频背景
@@ -78,105 +74,6 @@ class AccountDetailDialog(QDialog):
             from PyQt5.QtCore import QTimer
             QTimer.singleShot(500, self.do_login)
     
-    def check_incomplete_task(self):
-        """检查是否有未完成的任务"""
-        incomplete = self.task_progress.get_incomplete_tasks()
-        if incomplete:
-            # 找到当前账号的未完成任务
-            for task in incomplete:
-                if task.get('uid') == self.uid:
-                    task_type = task.get('task_type', '未知')
-                    task_config = task.get('task_config', {})
-                    course_name = task_config.get('course_name', '未知课程')
-                    
-                    msg_box = QMessageBox(QMessageBox.Question, "未完成任务", 
-                        f"检测到未完成的{task_type}任务：\n课程: {course_name}\n\n是否继续该任务？")
-                    msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-                    msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
-                    msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-                    
-                    if msg_box.exec_() == QMessageBox.StandardButton.Yes:
-                        self.continue_task(task)
-                    else:
-                        self.task_progress.clear_task_progress(task.get('task_id', ''))
-                    break
-    
-    def _execute_continue_task(self, task):
-        """执行继续任务"""
-        from core.logger import get_logger
-        from PyQt5.QtCore import QTimer
-        logger = get_logger("AccountDetail")
-        
-        task_type = task.get('task_type', '')
-        task_config = task.get('task_config', {})
-        unit_indices = task.get('unit_indices', [])
-        
-        logger.info(f"执行继续任务: {task_type}, 单元: {unit_indices}")
-        
-        if task_type == "刷时长":
-            self.mode_combo.setCurrentText("刷时长")
-            total_minutes = task_config.get('total_minutes', 60)
-            concurrent = task_config.get('concurrent', 20)
-            
-            self.time_spin.setValue(total_minutes // 60 if total_minutes >= 60 else total_minutes)
-            if total_minutes >= 60:
-                self.time_unit_combo.setCurrentText("小时")
-            else:
-                self.time_unit_combo.setCurrentText("分钟")
-            self.concurrent_spin.setValue(concurrent)
-        
-        elif task_type == "刷作业":
-            self.mode_combo.setCurrentText("刷作业")
-            accuracy = task_config.get('accuracy', 100)
-            concurrent = task_config.get('concurrent', 20)
-            
-            self.accuracy_spin.setValue(accuracy)
-            self.homework_concurrent_spin.setValue(concurrent)
-        
-        # 只选中之前未完成的单元
-        for i in range(self.unit_list.count()):
-            item = self.unit_list.item(i)
-            if i in unit_indices:
-                item.setCheckState(Qt.CheckState.Checked)
-            else:
-                item.setCheckState(Qt.CheckState.Unchecked)
-        
-        # 清除旧任务记录
-        self.task_progress.clear_task_progress(task.get('task_id', ''))
-        
-        self.log(f"已恢复{task_type}任务参数，自动开始执行...")
-        QTimer.singleShot(500, self.start_study)
-    
-    def continue_task(self, task):
-        """继续未完成的任务 - 先选择课程，加载单元后再执行"""
-        from core.logger import get_logger
-        logger = get_logger("AccountDetail")
-        
-        task_type = task.get('task_type', '')
-        task_config = task.get('task_config', {})
-        cid = task_config.get('cid', '')
-        unit_indices = task.get('unit_indices', [])
-        
-        logger.info(f"继续任务: {task_type}, 课程CID: {cid}, 单元: {unit_indices}")
-        self.log(f"准备继续未完成的{task_type}任务...")
-        
-        # 保存任务信息，等课程和单元加载后再执行
-        self._pending_continue_task = task
-        
-        # 选择对应的课程
-        if cid:
-            found = False
-            for i in range(self.courses_list.count()):
-                item = self.courses_list.item(i)
-                course_data = item.data(Qt.ItemDataRole.UserRole)
-                if course_data and course_data.get('cid') == cid:
-                    self.courses_list.setCurrentItem(item)
-                    self.on_course_selected(item)
-                    found = True
-                    break
-            if not found:
-                self.log("❌ 未找到对应的课程，无法继续任务")
-                self._pending_continue_task = None
     
     def init_ui(self):
         # 使用视频背景的内容容器
@@ -187,6 +84,52 @@ class AccountDetailDialog(QDialog):
         main_layout.setContentsMargins(10, 50, 10, 10)
         main_layout.setSpacing(5)
         
+        # 设置整体样式
+        self.setStyleSheet("""
+            QLabel { color: white; background: transparent; }
+            QGroupBox { 
+                color: white; 
+                font-weight: bold; 
+                border: 1px solid rgba(255,255,255,0.3); 
+                border-radius: 5px; 
+                margin-top: 10px; 
+                padding-top: 15px; 
+                background: transparent; 
+            }
+            QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }
+            QLineEdit, QSpinBox, QComboBox { 
+                background-color: rgba(255,255,255,0.3); 
+                border: 1px solid rgba(255,255,255,0.5); 
+                border-radius: 5px; 
+                padding: 5px; 
+                color: white; 
+            }
+            QListWidget { 
+                background-color: rgba(255,255,255,0.2); 
+                border: 1px solid rgba(255,255,255,0.3); 
+                border-radius: 5px; 
+                color: white; 
+            }
+            QListWidget::item:selected { background-color: rgba(100,200,100,0.3); }
+            QTextEdit { 
+                background-color: rgba(255,255,255,0.2); 
+                border: 1px solid rgba(255,255,255,0.3); 
+                border-radius: 5px; 
+                color: white; 
+            }
+            QProgressBar {
+                border: none;
+                border-radius: 6px;
+                background-color: rgba(255,255,255,0.2);
+                text-align: center;
+                color: white;
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+                border-radius: 6px;
+            }
+        """)
+        
         # 内容区
         layout = QVBoxLayout()
         layout.setContentsMargins(10, 0, 10, 10)
@@ -196,32 +139,21 @@ class AccountDetailDialog(QDialog):
         
         # 用户名标签
         username_label = QLabel(f"<b>用户名:</b> {self.account.username}")
-        username_label.setStyleSheet("color: white; font-size: 14px; background: transparent;")
+        username_label.setStyleSheet("color: white; font-size: 16px; background: transparent;")
         info_layout.addWidget(username_label)
         
         # 昵称标签
         nickname_label = QLabel(f"<b>昵称:</b> {self.account.nickname or '无'}")
-        nickname_label.setStyleSheet("color: white; font-size: 14px; background: transparent;")
+        nickname_label.setStyleSheet("color: white; font-size: 16px; background: transparent;")
         info_layout.addWidget(nickname_label)
         
         # 状态标签
         self.status_label = QLabel(f"<b>状态:</b> {self.account.status}")
-        self.status_label.setStyleSheet("color: #00FF88; font-size: 14px; background: transparent;")
+        self.status_label.setStyleSheet("color: #00FF88; font-size: 16px; background: transparent;")
         info_layout.addWidget(self.status_label)
         info_layout.addStretch()
         
-        self.login_btn = QPushButton("🔐 登录")
-        self.login_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                font-size: 13px;
-                border-radius: 4px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-        """)
+        self.login_btn = JellyButton("🔐 登录", "#4CAF50")
         self.login_btn.clicked.connect(self.do_login)
         info_layout.addWidget(self.login_btn)
         
@@ -242,25 +174,27 @@ class AccountDetailDialog(QDialog):
         course_group = QGroupBox("课程列表")
         course_layout = QVBoxLayout(course_group)
         
-        self.refresh_courses_btn = QPushButton("刷新课程")
+        self.refresh_courses_btn = JellyButton("刷新课程", "#2196F3")
         self.refresh_courses_btn.setEnabled(False)
-        self.refresh_courses_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                font-size: 12px;
-                border-radius: 4px;
-            }
-            QPushButton:hover { background-color: #1976D2; }
-            QPushButton:disabled { background-color: #666; }
-        """)
         self.refresh_courses_btn.clicked.connect(self.refresh_courses)
         course_layout.addWidget(self.refresh_courses_btn)
         
         self.courses_list = QListWidget()
         self.courses_list.itemClicked.connect(self.on_course_selected)
+        self.courses_list.setStyleSheet("""
+            QListWidget {
+                background-color: rgba(255, 255, 255, 0.6);
+                border: 1px solid #ddd;
+                border-radius: 5px;
+            }
+            QListWidget::item {
+                padding: 4px;
+                color: black;
+            }
+            QListWidget::item:selected {
+                background-color: rgba(100, 200, 100, 0.5);
+            }
+        """)
         course_layout.addWidget(self.courses_list)
         
         left_layout.addWidget(course_group)
@@ -286,10 +220,8 @@ class AccountDetailDialog(QDialog):
         
         # 全选/取消全选按钮
         select_btn_layout = QHBoxLayout()
-        self.select_all_btn = QPushButton("全选")
-        self.select_all_btn.setStyleSheet("QPushButton { background-color: #607D8B; color: white; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; } QPushButton:hover { background-color: #455A64; }")
-        self.select_none_btn = QPushButton("取消全选")
-        self.select_none_btn.setStyleSheet("QPushButton { background-color: #607D8B; color: white; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; } QPushButton:hover { background-color: #455A64; }")
+        self.select_all_btn = JellyButton("全选", "#607D8B")
+        self.select_none_btn = JellyButton("取消全选", "#607D8B")
         self.select_all_btn.clicked.connect(self.select_all_units)
         self.select_none_btn.clicked.connect(self.select_none_units)
         select_btn_layout.addWidget(self.select_all_btn)
@@ -300,6 +232,20 @@ class AccountDetailDialog(QDialog):
         # 单元列表
         self.unit_list = QListWidget()
         self.unit_list.setMaximumHeight(120)
+        self.unit_list.setStyleSheet("""
+            QListWidget {
+                background-color: rgba(255, 255, 255, 0.6);
+                border: 1px solid #ddd;
+                border-radius: 5px;
+            }
+            QListWidget::item {
+                padding: 4px;
+                color: black;
+            }
+            QListWidget::item:selected {
+                background-color: rgba(100, 200, 100, 0.5);
+            }
+        """)
         unit_group_layout.addWidget(self.unit_list)
         
         settings_layout.addWidget(unit_group)
@@ -392,37 +338,19 @@ class AccountDetailDialog(QDialog):
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.start_btn = QPushButton("▶️ 开始刷作业")
+        self.start_btn = JellyButton("▶️ 开始刷作业", "#4CAF50")
         self.start_btn.setEnabled(False)
-        self.start_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                border-radius: 5px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-            QPushButton:disabled { background-color: #666; }
-        """)
         self.start_btn.clicked.connect(self.start_study)
-        self.stop_btn = QPushButton("⏹️ 停止")
+        self.stop_btn = JellyButton("⏹️ 停止", "#f44336")
         self.stop_btn.setEnabled(False)
-        self.stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f44336;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                border-radius: 5px;
-            }
-            QPushButton:hover { background-color: #e53935; }
-            QPushButton:disabled { background-color: #666; }
-        """)
         self.stop_btn.clicked.connect(self.stop_study)
+        
+        self.pause_btn = JellyButton("⏸️ 暂停", "#FF9800")
+        self.pause_btn.setEnabled(False)
+        self.pause_btn.clicked.connect(self.pause_study)
+        
         control_layout.addWidget(self.start_btn)
+        control_layout.addWidget(self.pause_btn)
         control_layout.addWidget(self.stop_btn)
         left_layout.addLayout(control_layout)
         
@@ -457,7 +385,7 @@ class AccountDetailDialog(QDialog):
         """)
         log_layout.addWidget(self.log_text)
         
-        clear_log_btn = QPushButton("清空日志")
+        clear_log_btn = JellyButton("清空日志", "#607D8B")
         clear_log_btn.clicked.connect(lambda: self.log_text.clear())
         log_layout.addWidget(clear_log_btn)
         
@@ -538,6 +466,9 @@ class AccountDetailDialog(QDialog):
             self.content_container.setGeometry(0, 0, self.graphics_view.width(), self.graphics_view.height())
         if hasattr(self, 'top_bar'):
             self.top_bar.setGeometry(0, 0, self.width(), 40)
+        # 限制内容区域不超出窗口
+        if hasattr(self, 'graphics_view'):
+            self.graphics_view.setMaximumHeight(self.height())
     
     def log(self, message: str):
         """添加日志"""
@@ -595,7 +526,6 @@ class AccountDetailDialog(QDialog):
             self.refresh_courses()
             # 检查是否有未完成的任务
             from PyQt5.QtCore import QTimer
-            QTimer.singleShot(500, self.check_incomplete_task)
         else:
             self.login_btn.setText("🔐 登录")
             # 针对网络问题给出更友好的提示
@@ -712,7 +642,6 @@ class AccountDetailDialog(QDialog):
             
             # 检查是否有待继续的任务
             if hasattr(self, '_pending_continue_task') and self._pending_continue_task:
-                self._execute_continue_task(self._pending_continue_task)
                 self._pending_continue_task = None
         else:
             self.log(f"❌ 获取单元失败: {message}")
@@ -849,6 +778,8 @@ class AccountDetailDialog(QDialog):
                     return
         
         self.start_btn.setEnabled(False)
+        self.pause_btn.setEnabled(True)
+        self.pause_btn.setText("⏸️ 暂停")
         self.stop_btn.setEnabled(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
@@ -943,41 +874,6 @@ class AccountDetailDialog(QDialog):
         self.study_thread.progress_update.connect(self.on_progress_update)
         self.study_thread.study_finished.connect(self.on_study_finished)
         
-        # 保存任务进度
-        self.current_task_id = self.task_progress.generate_task_id(
-            self.current_course['cid'], self.uid, mode
-        )
-        task_config = {}
-        if mode == "刷作业":
-            task_config = {
-                "cid": self.current_course['cid'],
-                "accuracy": accuracy_config,
-                "concurrent": homework_concurrent,
-                "course_name": self.current_course['name']
-            }
-        else:
-            task_config = {
-                "cid": self.current_course['cid'],
-                "total_minutes": total_minutes,
-                "random_range": random_range,
-                "concurrent": concurrent,
-                "course_name": self.current_course['name']
-            }
-        
-        self.task_progress.save_task_progress(
-            task_id=self.current_task_id,
-            task_type=mode,
-            cid=self.current_course['cid'],
-            uid=self.uid,
-            classid=self.classid,
-            unit_indices=units_to_process,
-            current_units=self.current_units,
-            completed_units=[],
-            completed_courses={},
-            task_config=task_config
-        )
-        logger.info(f"任务进度已保存 - 任务ID: {self.current_task_id}")
-        
         self.study_thread.start()
     
     def stop_study(self):
@@ -1019,17 +915,46 @@ class AccountDetailDialog(QDialog):
                 self.log("任务已停止")
         
         # 保持任务暂停状态（不标记为完成）
-        if self.current_task_id:
-            logger.info(f"任务已暂停: {self.current_task_id}")
-            self.current_task_id = None
-        
         self.start_btn.setEnabled(True)
+        self.pause_btn.setEnabled(False)
         self.stop_btn.setEnabled(False)
         self.progress_bar.setVisible(False)
         self.countdown_label.setVisible(False)
         self._countdown_timer.stop()
         self.log("⏹️ 任务已停止")
         self.update_status("已停止")
+    
+    def pause_study(self):
+        """暂停任务"""
+        from core.logger import get_logger
+        logger = get_logger("AccountDetail")
+        
+        logger.info(f"用户请求暂停任务 - 账号: {self.account.username}")
+        
+        if self.study_thread and self.study_thread.isRunning():
+            self.study_thread.pause()
+            self.pause_btn.setText("▶️ 继续")
+            self.pause_btn.clicked.disconnect()
+            self.pause_btn.clicked.connect(self.resume_study)
+            self.log("⏸️ 任务已暂停")
+            self.update_status("已暂停")
+            self._countdown_timer.stop()
+    
+    def resume_study(self):
+        """继续任务"""
+        from core.logger import get_logger
+        logger = get_logger("AccountDetail")
+        
+        logger.info(f"用户请求继续任务 - 账号: {self.account.username}")
+        
+        if self.study_thread and self.study_thread.isRunning():
+            self.study_thread.resume()
+            self.pause_btn.setText("⏸️ 暂停")
+            self.pause_btn.clicked.disconnect()
+            self.pause_btn.clicked.connect(self.pause_study)
+            self.log("▶️ 任务已继续")
+            self.update_status("运行中")
+            self._countdown_timer.start(1000)
     
     def on_progress_update(self, status: str, message: str):
         """进度更新回调"""
@@ -1325,11 +1250,6 @@ class AccountDetailDialog(QDialog):
                 # 即使出错也要继续清理
                 self.study_thread = None
         
-        # 保存任务进度（保持暂停状态，不标记为完成）
-        if self.current_task_id:
-            logger.info(f"关闭窗口时保持任务暂停状态: {self.current_task_id}")
-            self.current_task_id = None
-        
         # 关闭客户端连接
         if hasattr(self, 'client') and self.client:
             try:
@@ -1389,8 +1309,12 @@ class AccountDetailDialog(QDialog):
         # 创建内容容器覆盖在视频上
         self.content_container = QWidget()
         self.content_container.setStyleSheet("background: transparent;")
+        self.content_container.setGeometry(0, 0, 720, 960)
         self.content_proxy = self.graphics_scene.addWidget(self.content_container)
         self.content_proxy.setZValue(1)
+        
+        # 限制场景大小，防止滚动
+        self.graphics_scene.setSceneRect(0, 0, 720, 960)
         
         # 设置为主布局
         main_layout = QVBoxLayout(self)

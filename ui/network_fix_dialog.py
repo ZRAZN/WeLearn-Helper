@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QProgressBar, QTextEdit, QCheckBox, QMessageBox
 )
 from PyQt5.QtGui import QPixmap, QIcon, QColor
-from ui.jelly_button import JellyButton
+from ui.jelly_qml_button import JellyQmlButton as JellyButton
 
 from core.network_fixer import NetworkDiagnostics, NetworkFixer, is_admin
 
@@ -149,12 +149,12 @@ class NetworkFixDialog(QDialog):
         # 操作按钮
         btn_layout = QHBoxLayout()
         self.diagnose_btn = JellyButton("🔍 一键诊断")
-        self.diagnose_btn.set_jelly_style("#2196F3", "#1976D2", "#1565C0")
+        self.diagnose_btn.set_color("#2196F3")
         self.diagnose_btn.clicked.connect(self.start_diagnosis)
         btn_layout.addWidget(self.diagnose_btn)
         
         self.fix_btn = JellyButton("🔧 修复选中项")
-        self.fix_btn.set_jelly_style("#4CAF50", "#43A047", "#2E7D32")
+        self.fix_btn.set_color("#4CAF50")
         self.fix_btn.setEnabled(False)
         self.fix_btn.clicked.connect(self.start_fix)
         btn_layout.addWidget(self.fix_btn)

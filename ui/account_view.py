@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor
 from core.account_manager import AccountManager, Account
 from core.logger import logger
-from ui.jelly_button import JellyButton
+from ui.jelly_qml_button import JellyQmlButton as JellyButton
 
 
 class AddAccountDialog(QDialog):
@@ -108,10 +108,8 @@ class AddAccountDialog(QDialog):
         layout.addWidget(self.nickname_input)
         
         button_layout = QHBoxLayout()
-        ok_btn = QPushButton("确定")
-        ok_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; } QPushButton:hover { background-color: #45a049; }")
-        cancel_btn = QPushButton("取消")
-        cancel_btn.setStyleSheet("QPushButton { background-color: #f44336; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; } QPushButton:hover { background-color: #e53935; }")
+        ok_btn = JellyButton("确定", "#4CAF50")
+        cancel_btn = JellyButton("取消", "#f44336")
         ok_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(ok_btn)
@@ -188,13 +186,13 @@ class AccountView(QWidget):
         toolbar_layout.setSpacing(10)
         
         self.add_btn = JellyButton("➕ 添加账号")
-        self.add_btn.set_jelly_style("#4CAF50", "#43A047", "#2E7D32")
-        self.delete_btn = JellyButton("🗑️ 删除选中")
-        self.delete_btn.set_jelly_style("#f44336", "#e53935", "#c62828")
-        self.refresh_btn = JellyButton("🔄 刷新列表")
-        self.refresh_btn.set_jelly_style("#2196F3", "#1E88E5", "#1565C0")
-        self.excel_import_btn = JellyButton("批量导入")
-        self.excel_import_btn.set_jelly_style("#FF9800", "#FB8C00", "#EF6C00")
+        self.add_btn.set_color("#4CAF50")
+        self.delete_btn = JellyButton("🗑️ 删除选中", "#f44336")
+        self.delete_btn.set_color("#f44336")
+        self.refresh_btn = JellyButton("🔄 刷新列表", "#2196F3")
+        self.refresh_btn.set_color("#2196F3")
+        self.excel_import_btn = JellyButton("批量导入", "#FF9800")
+        self.excel_import_btn.set_color("#FF9800")
         
         self.add_btn.clicked.connect(self.add_account)
         self.delete_btn.clicked.connect(self.delete_selected)
@@ -545,7 +543,7 @@ class AccountView(QWidget):
             # 操作按钮
             manage_btn = JellyButton("管理")
             manage_btn.setFixedSize(130, 40)
-            manage_btn.set_jelly_style("#9C27B0", "#8E24AA", "#6A1B9A")
+            manage_btn.set_color("#9C27B0")
             manage_btn.setProperty("username", acc.username)
             manage_btn.clicked.connect(self.on_manage_clicked)
             
