@@ -370,7 +370,7 @@ class WeLearnUI(QMainWindow):
         self.status_bar.showMessage(f"已打开账号详情: {username}")
     
     def on_account_status_updated(self, username: str, status: str, progress: str):
-        """账号状态更新回调"""
+        """账号状态更新回调 - 只更新特定行，不刷新整个表格"""
         self.account_view.update_account_status(username, status, progress)
     
     def on_detail_closed(self, username: str):

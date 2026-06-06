@@ -589,6 +589,24 @@ class AccountView(QWidget):
                 self.open_detail_requested.emit(account)
     
     def update_account_status(self, username: str, status: str, progress: str = ""):
-        """更新账号状态（供外部调用）"""
+        """更新账号状态 - 只更新对应行，不刷新整个表格"""
         self.account_manager.update_status(username, status, progress)
-        self.refresh_table()
+        # 找到对应行并更新状态显示
+        for row in range(self.account_table.rowCount()):
+            item = self.account_table.item(row, 0)
+            if item and item.text() == username:
+                status_item = self.account_table.item(row, 2)
+                if status_item:
+                    status_item.setText(status)
+                    if status == "运行中":
+                        status_item.setForeground(Qt.GlobalColor.blue)
+                    elif status == "已完成":
+                        status_item.setForeground(Qt.GlobalColor.darkGreen)
+                    elif status == "失败":
+                        status_item.setForeground(Qt.GlobalColor.red)
+                    else:
+                        status_item.setForeground(Qt.GlobalColor.black)
+                progress_item = self.account_table.item(row, 4)
+                if progress_item:
+                    progress_item.setText(progress or "-")
+                break
