@@ -44,10 +44,13 @@ def setup_video_background(widget, video_name='ui b.mp4', video_width=1520, vide
     # 创建图形场景和视图
     graphics_scene = QGraphicsScene()
     graphics_view = QGraphicsView(graphics_scene)
-    graphics_view.setStyleSheet("background: black; border: none;")
+    graphics_view.setStyleSheet("background: transparent; border: none;")
     graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-    graphics_view.viewport().setStyleSheet("background: black;")
+    graphics_view.viewport().setStyleSheet("background: transparent;")
+    
+    # 设置窗口背景为深色，避免闪烁
+    widget.setStyleSheet("background: #1a1a2e;")
     
     # 创建视频项 - 设置为窗口大小
     video_item = QGraphicsVideoItem()

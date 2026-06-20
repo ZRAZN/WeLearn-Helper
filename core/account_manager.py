@@ -127,12 +127,11 @@ class AccountManager:
         return self.accounts.copy()
     
     def update_status(self, username: str, status: str, progress: str = ""):
-        """更新账号状态"""
+        """更新账号状态 - 只更新内存，不保存到文件"""
         acc = self.get_account(username)
         if acc:
             acc.status = status
             acc.progress = progress
-            self.save_accounts()
     
     def save_accounts(self):
         """保存账号信息到文件"""

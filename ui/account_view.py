@@ -14,7 +14,6 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor
 from core.account_manager import AccountManager, Account
 from core.logger import logger
-from ui.jelly_qml_button import JellyQmlButton as JellyButton
 
 
 class AddAccountDialog(QDialog):
@@ -185,14 +184,14 @@ class AccountView(QWidget):
         toolbar_layout = QHBoxLayout()
         toolbar_layout.setSpacing(10)
         
-        self.add_btn = JellyButton("➕ 添加账号")
-        self.add_btn.set_color("#4CAF50")
-        self.delete_btn = JellyButton("🗑️ 删除选中", "#f44336")
-        self.delete_btn.set_color("#f44336")
-        self.refresh_btn = JellyButton("🔄 刷新列表", "#2196F3")
-        self.refresh_btn.set_color("#2196F3")
-        self.excel_import_btn = JellyButton("批量导入", "#FF9800")
-        self.excel_import_btn.set_color("#FF9800")
+        self.add_btn = QPushButton("➕ 添加账号")
+        self.add_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; border-bottom: 3px solid #388E3C; } QPushButton:hover { background-color: #43A047; } QPushButton:pressed { background-color: #2E7D32; border-bottom: 1px solid #1B5E20; }")
+        self.delete_btn = QPushButton("🗑️ 删除选中")
+        self.delete_btn.setStyleSheet("QPushButton { background-color: #f44336; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; border-bottom: 3px solid #c62828; } QPushButton:hover { background-color: #e53935; } QPushButton:pressed { background-color: #c62828; border-bottom: 1px solid #b71c1c; }")
+        self.refresh_btn = QPushButton("🔄 刷新列表")
+        self.refresh_btn.setStyleSheet("QPushButton { background-color: #2196F3; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; border-bottom: 3px solid #1565C0; } QPushButton:hover { background-color: #1E88E5; } QPushButton:pressed { background-color: #1565C0; border-bottom: 1px solid #0D47A1; }")
+        self.excel_import_btn = QPushButton("批量导入")
+        self.excel_import_btn.setStyleSheet("QPushButton { background-color: #FF9800; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; border-bottom: 3px solid #EF6C00; } QPushButton:hover { background-color: #FB8C00; } QPushButton:pressed { background-color: #EF6C00; border-bottom: 1px solid #E65100; }")
         
         self.add_btn.clicked.connect(self.add_account)
         self.delete_btn.clicked.connect(self.delete_selected)
@@ -541,11 +540,28 @@ class AccountView(QWidget):
             # 进度
             self.account_table.setItem(i, 4, QTableWidgetItem(acc.progress or "-"))
             # 操作按钮
-            manage_btn = JellyButton("管理")
+            manage_btn = QPushButton("管理")
             manage_btn.setFixedSize(130, 40)
-            manage_btn.set_color("#9C27B0")
+            manage_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #9C27B0;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    border-bottom: 3px solid #7B1FA2;
+                }
+                QPushButton:hover {
+                    background-color: #8E24AA;
+                }
+                QPushButton:pressed {
+                    background-color: #7B1FA2;
+                    border-bottom: 1px solid #6A1B9A;
+                }
+            """)
             manage_btn.setProperty("username", acc.username)
-            manage_btn.clicked.connect(self.on_manage_clicked)
+            manage_btn.clicked.connect(lambda checked=False, u=acc.username: self.on_manage_clicked(u))
             
             # 创建容器让按钮居中
             btn_container = QWidget()
@@ -570,10 +586,11 @@ class AccountView(QWidget):
                 self.account_table.scrollToItem(item)
                 break
     
-    def on_manage_clicked(self):
+    def on_manage_clicked(self, username=None):
         """管理按钮点击"""
-        btn = self.sender()
-        username = btn.property("username")
+        if username is None:
+            btn = self.sender()
+            username = btn.property("username")
         account = self.account_manager.get_account(username)
         if account:
             self.open_detail_requested.emit(account)

@@ -11,7 +11,6 @@ from PyQt5.QtWidgets import (
     QApplication, QStyle
 )
 from PyQt5.QtGui import QIcon, QBitmap, QPixmap, QPainter, QBrush
-from ui.jelly_qml_button import JellyQmlButton as JellyButton
 
 # 使用标准绝对导入
 from ui import account_view
@@ -33,7 +32,7 @@ class WeLearnUI(QMainWindow):
         self.detail_dialogs = {}  # 存储打开的详情对话框
         self.tray_icon = None     # 系统托盘图标
         self.tray_reminder_timer = None  # 托盘提醒定时器
-        self.version = "V6.0.0"     # 软件版本号
+        self.version = "V6.0.1"     # 软件版本号
         self.init_ui()
         self.init_tray()  # 初始化系统托盘
         self._dialogs = []  # 保存弹窗引用，防止被垃圾回收
@@ -57,7 +56,7 @@ class WeLearnUI(QMainWindow):
         QTimer.singleShot(100, self.center_window)
     
     def init_ui(self):
-        self.setWindowTitle("ZR | WeLearn学习助手 V6.0.0    致力于把大学生的时间还给大学生")
+        self.setWindowTitle("ZR | WeLearn学习助手 V6.0.1    致力于把大学生的时间还给大学生")
         # 按视频分辨率等比例缩小
         self.setGeometry(100, 100, 1520, 855)
         self.setMinimumSize(1280, 720)
@@ -198,16 +197,34 @@ class WeLearnUI(QMainWindow):
         bottom_layout.addStretch()
         
         # 网络工具箱按钮
-        self.network_fix_btn = JellyButton("🔧 网络工具箱")
-        self.network_fix_btn.set_color("#2196F3")
-        self.network_fix_btn.setMinimumHeight(48)
+        self.network_fix_btn = QPushButton("🔧 网络工具箱")
+        self.network_fix_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                font-size: 13px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #1976D2; }
+        """)
         self.network_fix_btn.clicked.connect(self.open_network_fix)
         bottom_layout.addWidget(self.network_fix_btn)
         
         # 打赏按钮
-        self.donate_btn = JellyButton("❤️ 打赏")
-        self.donate_btn.set_color("#E91E63")
-        self.donate_btn.setMinimumHeight(48)
+        self.donate_btn = QPushButton("❤️ 打赏")
+        self.donate_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #E91E63;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                font-size: 13px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #C2185B; }
+        """)
         self.donate_btn.clicked.connect(self.show_donate)
         bottom_layout.addWidget(self.donate_btn)
         
@@ -340,7 +357,18 @@ class WeLearnUI(QMainWindow):
         layout.addWidget(tip_label)
         
         # 关闭按钮
-        close_btn = JellyButton("关闭")
+        close_btn = QPushButton("关闭")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 24px;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
         close_btn.set_color("#4CAF50")
         close_btn.clicked.connect(dialog.close)
         layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -600,7 +628,7 @@ class WeLearnUI(QMainWindow):
             }
         """)
         warning_text.setHtml("""
-        <p><b>WeLearn学习助手V6.0.0版本</b>，由ZR修改并打包。</p>
+        <p><b>WeLearn学习助手V6.0.1版本</b>，由ZR修改并打包。</p>
         <p><b>使用条款：</b></p>
         <ol>
         <li>本软件仅供学习交流使用，严禁用于任何商业用途</li>
@@ -613,7 +641,18 @@ class WeLearnUI(QMainWindow):
         content_layout.addWidget(warning_text)
         
         # 按钮
-        ok_button = JellyButton("我已了解", "#4CAF50")
+        ok_button = QPushButton("我已了解")
+        ok_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                font-size: 15px;
+                border-radius: 6px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
         ok_button.clicked.connect(dialog.accept)
         content_layout.addWidget(ok_button, alignment=Qt.AlignmentFlag.AlignCenter)
         
@@ -656,7 +695,7 @@ class WeLearnUI(QMainWindow):
         dont_show = settings.value("General/dont_show_update_announcement", False, type=bool)
         announcement_shown = settings.value("General/announcement_shown", False, type=bool)
         last_version = settings.value("General/last_version", "", type=str)
-        current_version = "V6.0.0"  # 更新当前版本号
+        current_version = "V6.0.1"  # 更新当前版本号
         
         print(f"更新公告设置: 不再提醒={dont_show}")
         print(f"公告已显示={announcement_shown}")
@@ -770,13 +809,18 @@ class WeLearnUI(QMainWindow):
 
         
         # 最新更新公告
+        announcement_content += "V6.0.1\n"
+        announcement_content += "-修复任务完成后UI无响应问题\n"
+        announcement_content += "-任务完成改为非阻塞通知\n"
+        announcement_content += "-修复管理按钮打开错误账号问题\n"
+        announcement_content += "-删除自动刷时长功能\n\n"
+        
         announcement_content += "V6.0.0\n"
         announcement_content += "-声明和公告窗口改为无边框视频背景\n"
-        announcement_content += "-添加QML果冻按钮效果\n"
         announcement_content += "-添加刷时长暂停/继续功能\n"
         announcement_content += "-删除任务进度保存功能\n"
         announcement_content += "-弹窗改为独立非模态窗口\n"
-        announcement_content += "-所有窗口支持拖动\n"
+        announcement_content += "-所有窗口支持拖动\n\n"
         
         announcement_content += "V5.0.11\n"
         announcement_content += "-优化倒计时计算，添加分隔线，更新公告，修复警告页面任务栏图标\n"
@@ -932,7 +976,18 @@ class WeLearnUI(QMainWindow):
         # 创建按钮布局
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        ok_button = JellyButton("确定", "#4CAF50")
+        ok_button = QPushButton("确定")
+        ok_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 24px;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
         ok_button.clicked.connect(dialog.accept)
         button_layout.addWidget(ok_button)
         

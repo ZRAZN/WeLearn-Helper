@@ -15,7 +15,6 @@ from PyQt5.QtMultimedia import QSound
 from core.api import WeLearnClient
 from core.account_manager import Account
 from ui import workers
-from ui.jelly_qml_button import JellyQmlButton as JellyButton
 LoginThread = workers.LoginThread
 CourseThread = workers.CourseThread
 UnitsThread = workers.UnitsThread
@@ -50,6 +49,10 @@ class AccountDetailDialog(QDialog):
         self.course_thread = None
         self.units_thread = None
         self.study_thread = None  # 刷作业/刷时长通用
+        
+        # 账号管理器
+        from core.account_manager import AccountManager
+        self.account_manager = AccountManager()
         
 
         
@@ -153,7 +156,18 @@ class AccountDetailDialog(QDialog):
         info_layout.addWidget(self.status_label)
         info_layout.addStretch()
         
-        self.login_btn = JellyButton("🔐 登录", "#4CAF50")
+        self.login_btn = QPushButton("🔐 登录")
+        self.login_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
         self.login_btn.clicked.connect(self.do_login)
         info_layout.addWidget(self.login_btn)
         
@@ -174,7 +188,8 @@ class AccountDetailDialog(QDialog):
         course_group = QGroupBox("课程列表")
         course_layout = QVBoxLayout(course_group)
         
-        self.refresh_courses_btn = JellyButton("刷新课程", "#2196F3")
+        self.refresh_courses_btn = QPushButton("刷新课程")
+        self.refresh_courses_btn.setStyleSheet("QPushButton { background-color: #2196F3; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 4px; } QPushButton:hover { background-color: #1976D2; }")
         self.refresh_courses_btn.setEnabled(False)
         self.refresh_courses_btn.clicked.connect(self.refresh_courses)
         course_layout.addWidget(self.refresh_courses_btn)
@@ -220,8 +235,10 @@ class AccountDetailDialog(QDialog):
         
         # 全选/取消全选按钮
         select_btn_layout = QHBoxLayout()
-        self.select_all_btn = JellyButton("全选", "#607D8B")
-        self.select_none_btn = JellyButton("取消全选", "#607D8B")
+        self.select_all_btn = QPushButton("全选")
+        self.select_all_btn.setStyleSheet("QPushButton { background-color: #607D8B; color: white; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; } QPushButton:hover { background-color: #455A64; }")
+        self.select_none_btn = QPushButton("取消全选")
+        self.select_none_btn.setStyleSheet("QPushButton { background-color: #607D8B; color: white; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; } QPushButton:hover { background-color: #455A64; }")
         self.select_all_btn.clicked.connect(self.select_all_units)
         self.select_none_btn.clicked.connect(self.select_none_units)
         select_btn_layout.addWidget(self.select_all_btn)
@@ -338,14 +355,50 @@ class AccountDetailDialog(QDialog):
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.start_btn = JellyButton("▶️ 开始刷作业", "#4CAF50")
+        self.start_btn = QPushButton("▶️ 开始刷作业")
+        self.start_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+            QPushButton:disabled { background-color: #666; }
+        """)
         self.start_btn.setEnabled(False)
         self.start_btn.clicked.connect(self.start_study)
-        self.stop_btn = JellyButton("⏹️ 停止", "#f44336")
+        self.stop_btn = QPushButton("⏹️ 停止")
+        self.stop_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #e53935; }
+            QPushButton:disabled { background-color: #666; }
+        """)
         self.stop_btn.setEnabled(False)
         self.stop_btn.clicked.connect(self.stop_study)
         
-        self.pause_btn = JellyButton("⏸️ 暂停", "#FF9800")
+        self.pause_btn = QPushButton("⏸️ 暂停")
+        self.pause_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #FB8C00; }
+            QPushButton:disabled { background-color: #666; }
+        """)
         self.pause_btn.setEnabled(False)
         self.pause_btn.clicked.connect(self.pause_study)
         
@@ -385,7 +438,8 @@ class AccountDetailDialog(QDialog):
         """)
         log_layout.addWidget(self.log_text)
         
-        clear_log_btn = JellyButton("清空日志", "#607D8B")
+        clear_log_btn = QPushButton("清空日志")
+        clear_log_btn.setStyleSheet("QPushButton { background-color: #607D8B; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 4px; } QPushButton:hover { background-color: #455A64; }")
         clear_log_btn.clicked.connect(lambda: self.log_text.clear())
         log_layout.addWidget(clear_log_btn)
         
@@ -923,6 +977,7 @@ class AccountDetailDialog(QDialog):
         self._countdown_timer.stop()
         self.log("⏹️ 任务已停止")
         self.update_status("已停止")
+        self.account_manager.save_accounts()
     
     def pause_study(self):
         """暂停任务"""
@@ -1023,29 +1078,6 @@ class AccountDetailDialog(QDialog):
         self.progress_bar.setVisible(False)
         self._countdown_timer.stop()
         
-        completion_style = """
-            QLabel {
-                background-color: rgba(76, 175, 80, 0.85);
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                font-family: Consolas, monospace;
-                padding: 8px;
-                border-radius: 4px;
-            }
-        """
-        
-        if self._task_start_time and self._task_start_time.isValid():
-            total_seconds = int(self._task_start_time.elapsed() / 1000)
-            h = total_seconds // 3600
-            m = (total_seconds % 3600) // 60
-            s = total_seconds % 60
-            self.countdown_label.setText(f"✅ 任务完成! 总用时: {h:02d}:{m:02d}:{s:02d}")
-        else:
-            self.countdown_label.setText("✅ 任务已完成!")
-        self.countdown_label.setStyleSheet(completion_style)
-        self.countdown_label.setVisible(True)
-        
         mode = self.mode_combo.currentText()
         if mode == "刷作业":
             msg = f"步骤1成功: {result.get('way1_succeed', 0)}, 失败: {result.get('way1_failed', 0)}\n"
@@ -1055,13 +1087,6 @@ class AccountDetailDialog(QDialog):
                 msg += f"\n重试次数: {retry_count}"
             self.log(f"✅ 刷作业完成！\n{msg}")
             logger.info(f"刷作业任务完成 - 账号: {self.account.username}, 课程: {self.current_course['name']}, 结果: {msg}")
-            
-            # 刷作业完成后自动开始刷时长（5秒倒计时）
-            self.log("刷作业完成，5秒后自动开始刷时长...")
-            self._auto_start_countdown = 5
-            self._auto_start_timer = QTimer()
-            self._auto_start_timer.timeout.connect(self._auto_start_tick)
-            self._auto_start_timer.start(1000)
         else:
             completed_units = result.get('completed_units', 0)
             total_units = len(self.current_units) if self.current_units else 0
@@ -1089,60 +1114,35 @@ class AccountDetailDialog(QDialog):
                 self.log(f"播放QSound提示音也失败: {str(e2)}")
         
         self.update_status("已完成")
-        msg_box = QMessageBox(QMessageBox.Information, "完成", "任务已完成！")
-        # 移除问号帮助按钮
-        msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        msg_box.exec_()
-    
-    def _auto_start_tick(self):
-        """自动开始倒计时"""
-        self._auto_start_countdown -= 1
-        if self._auto_start_countdown <= 0:
-            self._auto_start_timer.stop()
-            self.auto_start_time_study()
-        else:
-            self.countdown_label.setText(f"⏱ {self._auto_start_countdown}秒后自动开始刷时长...")
-            self.countdown_label.setVisible(True)
-    
-    def auto_start_time_study(self):
-        """刷作业完成后自动开始刷时长"""
-        from core.logger import get_logger
-        from PyQt5.QtCore import QTimer
-        logger = get_logger("AccountDetail")
         
-        logger.info("刷作业完成，自动切换到刷时长模式")
+        # 保存账号状态到文件
+        self.account_manager.save_accounts()
         
-        # 切换到刷时长模式
-        self.mode_combo.setCurrentText("刷时长")
+        self.log("✅ 任务已完成！")
         
-        # 设置默认参数
-        self.time_spin.setValue(3)  # 默认3小时
-        self.time_unit_combo.setCurrentText("小时")
-        self.concurrent_spin.setValue(20)
-        self.time_random_spin.setValue(5)
-        
-        # 标记为自动开始，跳过确认弹窗
-        self._auto_start_mode = True
-        
-        # 5秒倒计时
-        self._auto_start_countdown = 5
-        self.countdown_label.setText(f"⏱ {self._auto_start_countdown}秒后自动开始刷时长...")
+        # 使用倒计时栏显示完成信息，而不是弹窗
+        completion_style = """
+            QLabel {
+                background-color: rgba(76, 175, 80, 0.85);
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                font-family: Consolas, monospace;
+                padding: 8px;
+                border-radius: 4px;
+            }
+        """
+        self.countdown_label.setStyleSheet(completion_style)
+        self.countdown_label.setText("✅ 任务已完成！")
         self.countdown_label.setVisible(True)
         
-        self._auto_start_timer = QTimer()
-        self._auto_start_timer.timeout.connect(self._auto_start_tick)
-        self._auto_start_timer.start(1000)
+        # 播放提示音
+        try:
+            import winsound
+            winsound.MessageBeep(winsound.MB_OK)
+        except:
+            pass
     
-    def _auto_start_tick(self):
-        """自动开始倒计时"""
-        self._auto_start_countdown -= 1
-        if self._auto_start_countdown <= 0:
-            self._auto_start_timer.stop()
-            self.countdown_label.setVisible(False)
-            self.start_study()
-        else:
-            self.countdown_label.setText(f"⏱ {self._auto_start_countdown}秒后自动开始刷时长...")
-            self.countdown_label.setVisible(True)
     
     def closeEvent(self, event):
         """关闭窗口时清理线程"""
