@@ -369,7 +369,6 @@ class WeLearnUI(QMainWindow):
             }
             QPushButton:hover { background-color: #45a049; }
         """)
-        close_btn.set_color("#4CAF50")
         close_btn.clicked.connect(dialog.close)
         layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         
