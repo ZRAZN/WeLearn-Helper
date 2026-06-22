@@ -107,8 +107,10 @@ class AddAccountDialog(QDialog):
         layout.addWidget(self.nickname_input)
         
         button_layout = QHBoxLayout()
-        ok_btn = JellyButton("确定", "#4CAF50")
-        cancel_btn = JellyButton("取消", "#f44336")
+        ok_btn = QPushButton("确定")
+        ok_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; } QPushButton:hover { background-color: #45a049; }")
+        cancel_btn = QPushButton("取消")
+        cancel_btn.setStyleSheet("QPushButton { background-color: #f44336; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; } QPushButton:hover { background-color: #e53935; }")
         ok_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(ok_btn)
